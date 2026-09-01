@@ -5,11 +5,12 @@ if (!baseUrl || !expectedCommit || !expectedUpstream) {
   throw new Error("usage: smoke.mjs <base-url> <worker-commit> <upstream-commit>");
 }
 
+const RETRY_DELAYS_MS = [0, 2_000, 3_000, 5_000, 8_000, 10_000, 12_000, 15_000];
+
 async function request(path, expectedStatus, options) {
-  const retryDelays = [0, 2_000, 3_000, 5_000, 8_000, 10_000, 12_000, 15_000];
   let lastError = new Error(`${path} was not requested`);
 
-  for (const delay of retryDelays) {
+  for (const delay of RETRY_DELAYS_MS) {
     if (delay > 0) {
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -42,6 +43,27 @@ async function request(path, expectedStatus, options) {
   throw lastError;
 }
 
+async function waitForExpectedInfo() {
+  let lastError = new Error("/info was not requested");
+
+  for (const delay of RETRY_DELAYS_MS) {
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    const info = await request("/info", 200);
+    const body = await info.json();
+    if (body.commit === expectedCommit && body.upstream === expectedUpstream) {
+      return body;
+    }
+    lastError = new Error(
+      `/info identity commit=${body.commit} upstream=${body.upstream}, expected commit=${expectedCommit} upstream=${expectedUpstream}`,
+    );
+  }
+
+  throw lastError;
+}
+
 const health = await request("/healthz", 200);
 if ((await health.text()) !== "ok") {
   throw new Error("/healthz did not return ok");
@@ -53,14 +75,7 @@ if (pingBody.code !== 200 || pingBody.message !== "pong") {
   throw new Error("/ping returned an incompatible response");
 }
 
-const info = await request("/info", 200);
-const infoBody = await info.json();
-if (infoBody.commit !== expectedCommit) {
-  throw new Error(`/info commit=${infoBody.commit}, expected ${expectedCommit}`);
-}
-if (infoBody.upstream !== expectedUpstream) {
-  throw new Error(`/info upstream=${infoBody.upstream}, expected ${expectedUpstream}`);
-}
+const infoBody = await waitForExpectedInfo();
 if (typeof infoBody.devices !== "number" || infoBody.devices < 0) {
   throw new Error("/info returned an invalid device count");
 }
