@@ -60,7 +60,7 @@
         {
           "binding": "DB",
           "database_name": "bark-worker-staging-db",
-          "database_id": "00000000-0000-0000-0000-000000000002",
+          "database_id": "26f81016-afe3-48b9-ab9d-a1bc3b3f30f4",
           "migrations_dir": "migrations",
         },
       ],
@@ -87,7 +87,7 @@
         {
           "binding": "DB",
           "database_name": "bark-worker-db",
-          "database_id": "00000000-0000-0000-0000-000000000003",
+          "database_id": "60f943ea-38a5-4dad-bbae-ef9174d38b7d",
           "migrations_dir": "migrations",
         },
       ],
