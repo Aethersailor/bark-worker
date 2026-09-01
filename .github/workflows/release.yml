@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  staging:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      vars.AUTO_DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: staging
+      source_sha: ${{ github.event.workflow_run.head_sha }}
+      base_url: ${{ vars.STAGING_BASE_URL }}
+    secrets: inherit
+
+  production:
+    needs: staging
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: production
+      source_sha: ${{ github.event.workflow_run.head_sha }}
+      base_url: ${{ vars.PRODUCTION_BASE_URL }}
+    secrets: inherit

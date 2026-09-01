@@ -1,0 +1,97 @@
+name: Upstream Sync
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      changed: ${{ steps.upstream.outputs.changed }}
+      safe: ${{ steps.upstream.outputs.safe }}
+      source_sha: ${{ steps.commit.outputs.source_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check latest upstream
+        id: upstream
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm upstream:sync
+
+      - name: Open an issue for semantic upstream changes
+        if: steps.upstream.outputs.safe == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REASON: ${{ steps.upstream.outputs.reason }}
+          UPSTREAM_SHA: ${{ steps.upstream.outputs.upstream_sha }}
+        shell: bash
+        run: |
+          title="Upstream compatibility review required"
+          if ! gh issue list --state open --search "$title in:title" --json title --jq '.[].title' | grep -Fxq "$title"; then
+            gh issue create --title "$title" --body "Finb/bark-server changed at \`$UPSTREAM_SHA\`. Automatic deployment stopped. Reason: $REASON"
+          fi
+          exit 1
+
+      - name: Validate safe update
+        if: steps.upstream.outputs.changed == 'true' && steps.upstream.outputs.safe == 'true'
+        run: pnpm check
+
+      - name: Commit safe lock update
+        id: commit
+        if: steps.upstream.outputs.changed == 'true' && steps.upstream.outputs.safe == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add upstream/UPSTREAM.lock.json
+          git commit -m "chore(upstream): sync bark-server"
+          git push origin HEAD:main
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  staging:
+    needs: sync
+    if: >-
+      needs.sync.outputs.changed == 'true' &&
+      needs.sync.outputs.safe == 'true' &&
+      vars.AUTO_DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: staging
+      source_sha: ${{ needs.sync.outputs.source_sha }}
+      base_url: ${{ vars.STAGING_BASE_URL }}
+    secrets: inherit
+
+  production:
+    needs: [sync, staging]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: production
+      source_sha: ${{ needs.sync.outputs.source_sha }}
+      base_url: ${{ vars.PRODUCTION_BASE_URL }}
+    secrets: inherit

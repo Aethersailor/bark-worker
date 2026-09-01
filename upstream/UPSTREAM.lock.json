@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "repository": "Finb/bark-server",
+  "branch": "master",
+  "commit": "3df8990fcbc407a3f5638eea8cedc3289d1a405d",
+  "verifiedAt": "2026-09-01T14:55:35.657Z",
+  "semanticFiles": [
+    "main.go",
+    "router.go",
+    "route_auth.go",
+    "route_mcp.go",
+    "route_misc.go",
+    "route_push.go",
+    "route_register.go",
+    "database/database.go",
+    "apns/apns.go",
+    "apns/apns_certs.go"
+  ],
+  "files": {
+    "main.go": "e03cd04039cb9b20fe476ec77f8ffd2d0e8bce839bf8413b95e22238f446f628",
+    "router.go": "54348467afc833d032203f95208be02c4238266c06fed3639ed754c44423daf4",
+    "route_auth.go": "e4ed8a05044db12a1bfd9d97c8b9b271bd4d78293aa3c79acf869172f3481a7f",
+    "route_mcp.go": "0da91c87cdcb20b9f5962ff28ccc0c08c73c4e71a86f707a26beac49517ce459",
+    "route_misc.go": "a91d3788c7f60e3d1ffd78f4a91f62665bbd926f806155a62b5579598c7c0986",
+    "route_push.go": "f114c1093db13e360ff9778608e6f9980ae472d95ec87baa2382d005c8330f60",
+    "route_register.go": "fd3d083a680ae7b597619266e23c54ab895d8c944dfeedb948b873bb62ae7d34",
+    "push_test.go": "64aa467b8b95082ff753a2ab66ef3776b4f25422675f4f59d5c71983bdf1e39b",
+    "database/database.go": "275778c0eebcc7e4b0af6394d08eb583a4c772719d1b829f0da0cf8d53e1849d",
+    "apns/apns.go": "62df2271ccf6c2d410fee8099364fb0d9919d9f4bdeb28df1f0ea16469435247",
+    "apns/apns_certs.go": "a6f21221c70cd7a3cddfd30aaa59a5f8ab300465f8065fb273cb1b12bce30c82",
+    "docs/API_V2.md": "f35a64a08db5a1ce38fafe1b284e8b8b784339f1c827e0766dc7fcc82ae11636",
+    "docs/MCP.md": "28e723f19f9ed758b848edec6038b387ac2fcf04781d68abe41ec57518e8e10d"
+  },
+  "contract": {
+    "apns": {
+      "keyId": "LH4T9V5U4R",
+      "payloadMaximum": 4096,
+      "privateKeySha256": "0aed1c50d624b0c6992712f2224ebeb943761a21656b9f4979331f6f88e2b2ee",
+      "teamId": "5U8LBRXG3A",
+      "topic": "me.fin.bark"
+    },
+    "databaseMethods": [
+      "Close",
+      "CountAll",
+      "DeleteDeviceByKey",
+      "DeviceTokenByKey",
+      "SaveDeviceTokenByKey"
+    ],
+    "routes": [
+      "ALL /mcp",
+      "ALL /mcp/:device_key",
+      "GET /",
+      "GET /:device_key",
+      "GET /:device_key/:body",
+      "GET /:device_key/:title/:body",
+      "GET /:device_key/:title/:subtitle/:body",
+      "GET /healthz",
+      "GET /info",
+      "GET /ping",
+      "GET /register",
+      "GET /register/:device_key",
+      "POST /:device_key",
+      "POST /:device_key/:body",
+      "POST /:device_key/:title/:body",
+      "POST /:device_key/:title/:subtitle/:body",
+      "POST /push",
+      "POST /register"
+    ]
+  }
+}

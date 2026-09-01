@@ -1,0 +1,44 @@
+{
+  "name": "bark-worker",
+  "version": "0.1.0",
+  "description": "Bark server implementation for Cloudflare Workers and D1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --env staging --outdir dist",
+    "check": "pnpm format && pnpm lint && pnpm typecheck && pnpm migrate:local && pnpm test && pnpm build && pnpm upstream:check",
+    "deploy:production": "wrangler deploy --env production",
+    "deploy:staging": "wrangler deploy --env staging",
+    "dev": "wrangler dev",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "migrate:local": "wrangler d1 migrations apply bark-worker-local --local",
+    "test": "pnpm test:unit && pnpm test:integration && pnpm test:tools",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:tools": "node --test scripts/tests/*.test.mjs && go -C tools/bark-db test ./... && go -C tools/bark-db vet ./...",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "typecheck": "wrangler types --check && tsc --noEmit",
+    "types": "wrangler types",
+    "upstream:check": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json",
+    "upstream:sync": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json --write"
+  },
+  "dependencies": {
+    "hono": "^4.13.5"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.1.2",
+    "@cloudflare/workers-types": "^5.20260901.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.10.0",
+    "eslint": "^10.9.1",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.127.1"
+  }
+}

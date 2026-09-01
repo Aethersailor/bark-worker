@@ -1,0 +1,4 @@
+APNS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nreplace-with-the-pinned-upstream-key\n-----END PRIVATE KEY-----"
+# BASIC_AUTH_USER=
+# BASIC_AUTH_PASSWORD=
+# MCP_SESSION_SECRET=

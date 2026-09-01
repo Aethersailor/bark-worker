@@ -1,0 +1,13 @@
+dist
+.dev.vars
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+node_modules/
+.wrangler/
+coverage/
+*.bark.db
+*.bark-backup.sql
+*.bark-export.json
