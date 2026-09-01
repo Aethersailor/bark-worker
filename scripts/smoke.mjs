@@ -6,16 +6,40 @@ if (!baseUrl || !expectedCommit || !expectedUpstream) {
 }
 
 async function request(path, expectedStatus, options) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    redirect: "error",
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (response.status !== expectedStatus) {
-    const body = await response.text();
-    throw new Error(`${path} returned ${response.status}, expected ${expectedStatus}: ${body}`);
+  const retryDelays = [0, 2_000, 3_000, 5_000, 8_000, 10_000, 12_000, 15_000];
+  let lastError = new Error(`${path} was not requested`);
+
+  for (const delay of retryDelays) {
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    let response;
+    try {
+      response = await fetch(`${baseUrl}${path}`, {
+        ...options,
+        redirect: "error",
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      continue;
+    }
+
+    if (response.status === expectedStatus) {
+      return response;
+    }
+
+    const body = (await response.text()).slice(0, 512).replaceAll(/\s+/g, " ").trim();
+    lastError = new Error(
+      `${path} returned ${response.status}, expected ${expectedStatus}: ${body}`,
+    );
+    if (![404, 429, 500, 502, 503, 504].includes(response.status)) {
+      throw lastError;
+    }
   }
-  return response;
+
+  throw lastError;
 }
 
 const health = await request("/healthz", 200);
