@@ -107,7 +107,7 @@ Dependabot 每周检查 npm、Go module 和 GitHub Actions 依赖。受信任的
 - PR 基于当前 `main`，不是已经过期的测试基线。
 - CI、双语言 CodeQL 和代码扫描检查均在 PR 的精确 head SHA 上成功。
 
-协调器每次只合并一个 PR；其他 PR 由 Dependabot 自动 rebase 后重新验证。合并会显式触发 `main` CI，该次 CI 验证精确合并 SHA 后直接执行 Staging → Production 发布链，避免 `GITHUB_TOKEN` 的工作流递归保护中断发布。检查失败、来源异常、越界文件或过期基线都会保持未合并，定时协调器会在条件恢复后继续处理。
+协调器每次只合并一个 PR；其余 PR 会自动更新到最新 `main`，并在更新后的精确 head SHA 上重新运行 CI 和 CodeQL。合并会显式触发 `main` CI，该次 CI 验证精确合并 SHA 后直接执行 Staging → Production 发布链，避免 `GITHUB_TOKEN` 的工作流递归保护中断发布。检查失败、来源异常或越界文件会保持未合并，定时协调器会在条件恢复后继续处理。
 
 ## 安全
 

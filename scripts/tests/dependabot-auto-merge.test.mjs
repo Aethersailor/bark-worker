@@ -6,6 +6,7 @@ import {
   commitsAreTrusted,
   filesMatchDependabotScope,
   isTrustedDependabotPullRequest,
+  requiredChecksAreMissing,
 } from "../dependabot-auto-merge.mjs";
 
 const trustedPull = {
@@ -87,6 +88,21 @@ test("requires verified Dependabot commits", () => {
     ]),
     false,
   );
+  assert.equal(
+    commitsAreTrusted([
+      {
+        author: { login: "dependabot[bot]" },
+        commit: { verification: { verified: true }, message: "build(deps): bump hono" },
+        parents: [{ sha: "base" }],
+      },
+      {
+        author: { login: "github-actions[bot]" },
+        commit: { verification: { verified: true }, message: "Merge main into dependabot/hono" },
+        parents: [{ sha: "dependency" }, { sha: "main" }],
+      },
+    ]),
+    true,
+  );
 });
 
 function successfulCheck(name, appSlug) {
@@ -108,6 +124,8 @@ const requiredChecks = [
 
 test("requires every expected check from the expected GitHub App", () => {
   assert.equal(checksAreGreen(requiredChecks), true);
+  assert.equal(requiredChecksAreMissing(requiredChecks), false);
+  assert.equal(requiredChecksAreMissing(requiredChecks.slice(0, -1)), true);
   assert.equal(checksAreGreen(requiredChecks, [{ state: "pending" }]), false);
   assert.equal(checksAreGreen(requiredChecks.slice(0, -1)), false);
   assert.equal(
