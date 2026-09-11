@@ -9,37 +9,82 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
-  checks: read
-  contents: write
-  pull-requests: write
-  statuses: read
+  contents: read
 
 concurrency:
   group: dependabot-auto-merge
   cancel-in-progress: false
 
 jobs:
-  reconcile:
+  merge:
     if: github.repository == 'Aethersailor/bark-worker'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Checkout trusted automation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create repository-scoped token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          ref: main
-          persist-credentials: false
+          app-id: ${{ secrets.DEPENDABOT_MERGE_APP_ID }}
+          private-key: ${{ secrets.DEPENDABOT_MERGE_APP_PRIVATE_KEY }}
+          owner: Aethersailor
+          repositories: bark-worker
+          permission-actions: read
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
 
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-
-      - name: Reconcile Dependabot pull requests
+      - name: Merge the first ready Dependabot pull request
         env:
-          GITHUB_APP_ID: ${{ secrets.DEPENDABOT_MERGE_APP_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.DEPENDABOT_MERGE_APP_PRIVATE_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET_BRANCH: main
-        run: node scripts/dependabot-auto-merge.mjs
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t prs < <(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&base=main&per_page=100" --jq 'sort_by(.number) | .[].number')
+
+          for pr in "${prs[@]}"; do
+            pull=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr")
+            trusted=$(jq -r --arg repo "$GITHUB_REPOSITORY" '
+              .user.login == "dependabot[bot]" and
+              .user.type == "Bot" and
+              .head.repo.full_name == $repo and
+              (.head.ref | startswith("dependabot/")) and
+              .base.ref == "main" and
+              (.draft | not)
+            ' <<<"$pull")
+            [[ "$trusted" == "true" ]] || continue
+
+            verified=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr/commits?per_page=100" --jq '
+              length > 0 and all(.[];
+                .commit.verification.verified == true and
+                (.author.login == "dependabot[bot]" or .author.login == "aethersailor-bark-maintainer[bot]")
+              )
+            ')
+            [[ "$verified" == "true" ]] || continue
+
+            head_sha=$(jq -r '.head.sha' <<<"$pull")
+            main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+            merge_base=$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$head_sha" --jq '.merge_base_commit.sha')
+            if [[ "$merge_base" != "$main_sha" ]]; then
+              gh api --method PUT "repos/$GITHUB_REPOSITORY/pulls/$pr/update-branch" -f expected_head_sha="$head_sha" >/dev/null
+              echo "Updated Dependabot PR #$pr; fresh PR checks will run automatically."
+              exit 0
+            fi
+
+            if ! timeout 8m gh pr checks "$pr" --repo "$GITHUB_REPOSITORY" --watch --fail-fast --interval 10; then
+              echo "Dependabot PR #$pr is not ready; leaving it open."
+              continue
+            fi
+
+            latest_pull=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr")
+            latest_head=$(jq -r '.head.sha' <<<"$latest_pull")
+            latest_main=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+            latest_base=$(gh api "repos/$GITHUB_REPOSITORY/compare/$latest_main...$latest_head" --jq '.merge_base_commit.sha')
+            [[ "$latest_head" == "$head_sha" && "$latest_main" == "$main_sha" && "$latest_base" == "$latest_main" ]] || continue
+
+            gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$head_sha"
+            echo "Merged Dependabot PR #$pr at $head_sha."
+            exit 0
+          done
+
+          echo "No Dependabot pull request is ready."

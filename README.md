@@ -100,16 +100,14 @@ pnpm upstream:check
 
 ## 依赖自动维护
 
-Dependabot 每周检查 npm、Go module 和 GitHub Actions 依赖。受信任的同仓库 Dependabot PR 在以下条件全部满足后自动 squash 合并：
+Dependabot 每周检查 npm、Go module 和 GitHub Actions 依赖。自动合并工作流使用仅安装到本仓库的 GitHub App 短期令牌，不保存个人 PAT。
 
-- 提交由 `dependabot[bot]` 创建并通过 GitHub 签名验证。
-- 改动仅位于对应生态的依赖文件或工作流文件中。
-- PR 基于当前 `main`，不是已经过期的测试基线。
-- CI、双语言 CodeQL 和代码扫描检查均在 PR 的精确 head SHA 上成功。
+- 只处理 `dependabot[bot]` 创建的同仓库 PR，并要求提交通过 GitHub 签名验证。
+- 过期分支先更新到最新 `main`，由 GitHub 自动重新运行 PR 检查。
+- 所有检查成功且 head SHA、主分支和 merge base 均未变化后，自动 squash 合并。
+- App 合并会正常触发现有 CI → Staging → Production 发布链。
 
-协调器每次只合并一个 PR；其余 PR 会自动更新到最新 `main`，并在更新后的精确 head SHA 上重新运行 CI 和 CodeQL。合并会显式触发 `main` CI，该次 CI 验证精确合并 SHA 后直接执行 Staging → Production 发布链，避免 `GITHUB_TOKEN` 的工作流递归保护中断发布。检查失败、来源异常或越界文件会保持未合并，定时协调器会在条件恢复后继续处理。
-
-GitHub 不允许默认 `GITHUB_TOKEN` 更新或合并工作流文件。为覆盖 GitHub Actions 依赖，仓库使用仅安装到本仓库的 GitHub App，并从 `DEPENDABOT_MERGE_APP_ID`、`DEPENDABOT_MERGE_APP_PRIVATE_KEY` Secrets 每次签发短期令牌；不保存个人 PAT。未配置 App 时，npm 和 Go 依赖仍会自动维护，Actions PR 会安全等待。
+每次只更新或合并一个 PR；失败的 PR 保持打开，后续事件或每小时兜底任务会再次检查。
 
 ## 安全
 
