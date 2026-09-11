@@ -9,6 +9,7 @@ const REQUIRED_CHECKS = new Map([
   ["analyze (go)", "github-actions"],
   ["CodeQL", "github-advanced-security"],
 ]);
+const REQUIRED_BASE_CHECKS = new Map([...REQUIRED_CHECKS].filter(([name]) => name !== "CodeQL"));
 
 export function isTrustedDependabotPullRequest(pull, repository, targetBranch) {
   return (
@@ -39,10 +40,28 @@ export function filesMatchDependabotScope(headRef, files) {
   }
 
   if (headRef.startsWith("dependabot/github_actions/")) {
-    return names.every((name) => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(name));
+    return files.every(
+      (file) =>
+        /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file.filename) && actionPinOnlyPatch(file.patch),
+    );
   }
 
   return false;
+}
+
+export function actionPinOnlyPatch(patch) {
+  if (typeof patch !== "string") return false;
+  const changedLines = patch
+    .split("\n")
+    .filter(
+      (line) =>
+        (line.startsWith("+") && !line.startsWith("+++")) ||
+        (line.startsWith("-") && !line.startsWith("---")),
+    )
+    .map((line) => line.slice(1));
+  const pinnedAction =
+    /^\s*uses:\s+[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+@[0-9a-f]{40}(?:\s+#.*)?\s*$/;
+  return changedLines.length > 0 && changedLines.every((line) => pinnedAction.test(line));
 }
 
 export function commitsAreTrusted(commits) {
@@ -71,6 +90,18 @@ export function requiredChecksAreMissing(checkRuns) {
   return [...REQUIRED_CHECKS].some(
     ([name, appSlug]) =>
       !checkRuns.some((check) => check.name === name && check.app?.slug === appSlug),
+  );
+}
+
+export function requiredChecksAreGreen(checkRuns) {
+  return [...REQUIRED_BASE_CHECKS].every(([name, appSlug]) =>
+    checkRuns.some(
+      (check) =>
+        check.name === name &&
+        check.app?.slug === appSlug &&
+        check.status === "completed" &&
+        check.conclusion === "success",
+    ),
   );
 }
 
@@ -203,7 +234,9 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
       notes.push(`- #${number}: skipped because a commit is not verified Dependabot output.`);
       continue;
     }
-    if (comparison.merge_base_commit?.sha !== currentBaseSha) {
+    const staleBase = comparison.merge_base_commit?.sha !== currentBaseSha;
+    const actionPinOnly = pull.head.ref.startsWith("dependabot/github_actions/");
+    if (staleBase && !actionPinOnly) {
       if (dryRun) {
         notes.push(`- #${number}: needs an automatic update to the current ${targetBranch}.`);
         await writeSummary(notes);
@@ -236,6 +269,23 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
       console.log(`Updated Dependabot PR #${number} and dispatched fresh checks.`);
       return { merged: false, updatedPullNumber: number, headSha: updatedPull.head.sha };
     }
+    if (staleBase) {
+      const [baseChecks, baseStatus] = await Promise.all([
+        api(`/repos/${repository}/commits/${currentBaseSha}/check-runs?filter=latest&per_page=100`),
+        api(`/repos/${repository}/commits/${currentBaseSha}/status?per_page=100`),
+      ]);
+      if (
+        baseChecks.total_count > baseChecks.check_runs.length ||
+        !requiredChecksAreGreen(baseChecks.check_runs) ||
+        !(baseStatus.statuses || []).every((status) => status.state === "success")
+      ) {
+        notes.push(
+          `- #${number}: waiting for checks on current ${targetBranch} \`${currentBaseSha}\`.`,
+        );
+        continue;
+      }
+      notes.push(`- #${number}: stale base accepted for a verified action-pin-only change.`);
+    }
     if (checks.total_count > checks.check_runs.length) {
       notes.push(`- #${number}: skipped because not all check runs fit inside the review bound.`);
       continue;
@@ -265,6 +315,12 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
       await writeSummary(notes);
       console.log(`Dependabot PR #${number} is eligible for auto-merge.`);
       return { merged: false, eligiblePullNumber: number };
+    }
+
+    const latestBranch = await api(`/repos/${repository}/git/ref/heads/${encodedBranch}`);
+    if (latestBranch.object.sha !== currentBaseSha) {
+      notes.push(`- #${number}: ${targetBranch} changed during verification; retrying later.`);
+      continue;
     }
 
     const result = await api(`/repos/${repository}/pulls/${number}/merge`, {
