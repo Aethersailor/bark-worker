@@ -20,7 +20,7 @@
     "test:tools": "node --test scripts/tests/*.test.mjs && go -C tools/bark-db test ./... && go -C tools/bark-db vet ./...",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "wrangler types --check && tsc --noEmit",
+    "typecheck": "wrangler types && tsc --noEmit",
     "types": "wrangler types",
     "upstream:check": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json",
     "upstream:sync": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json --write"

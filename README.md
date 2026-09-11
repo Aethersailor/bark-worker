@@ -98,6 +98,17 @@ pnpm upstream:check
 
 维护规则见 [上游同步说明](docs/UPSTREAM_SYNC.md)。
 
+## 依赖自动维护
+
+Dependabot 每周检查 npm、Go module 和 GitHub Actions 依赖。受信任的同仓库 Dependabot PR 在以下条件全部满足后自动 squash 合并：
+
+- 提交由 `dependabot[bot]` 创建并通过 GitHub 签名验证。
+- 改动仅位于对应生态的依赖文件或工作流文件中。
+- PR 基于当前 `main`，不是已经过期的测试基线。
+- CI、双语言 CodeQL 和代码扫描检查均在 PR 的精确 head SHA 上成功。
+
+协调器每次只合并一个 PR；其他 PR 由 Dependabot 自动 rebase 后重新验证。合并会显式触发 `main` CI，成功后继续执行现有 Staging → Production 发布链。检查失败、来源异常、越界文件或过期基线都会保持未合并，定时协调器会在条件恢复后继续处理。
+
 ## 安全
 
 - `APNS_PRIVATE_KEY` 只存放在 Cloudflare secret 或临时部署文件中。
