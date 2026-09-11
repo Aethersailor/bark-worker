@@ -9,6 +9,7 @@ const REQUIRED_CHECKS = new Map([
   ["analyze (go)", "github-actions"],
   ["CodeQL", "github-advanced-security"],
 ]);
+const REQUIRED_BASE_CHECKS = new Map([...REQUIRED_CHECKS].filter(([name]) => name !== "CodeQL"));
 
 export function isTrustedDependabotPullRequest(pull, repository, targetBranch) {
   return (
@@ -39,20 +40,68 @@ export function filesMatchDependabotScope(headRef, files) {
   }
 
   if (headRef.startsWith("dependabot/github_actions/")) {
-    return names.every((name) => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(name));
+    return files.every(
+      (file) =>
+        /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file.filename) && actionPinOnlyPatch(file.patch),
+    );
   }
 
   return false;
 }
 
-export function commitsAreTrusted(commits) {
-  return (
-    commits.length > 0 &&
-    commits.every(
-      (commit) =>
-        commit?.author?.login === "dependabot[bot]" &&
-        commit?.commit?.verification?.verified === true,
+export function actionPinOnlyPatch(patch) {
+  if (typeof patch !== "string") return false;
+  const changedLines = patch
+    .split("\n")
+    .filter(
+      (line) =>
+        (line.startsWith("+") && !line.startsWith("+++")) ||
+        (line.startsWith("-") && !line.startsWith("---")),
     )
+    .map((line) => line.slice(1));
+  const pinnedAction =
+    /^\s*uses:\s+[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+@[0-9a-f]{40}(?:\s+#.*)?\s*$/;
+  return changedLines.length > 0 && changedLines.every((line) => pinnedAction.test(line));
+}
+
+export function commitsAreTrusted(commits) {
+  let dependabotCommits = 0;
+  if (commits.length === 0) return false;
+
+  for (const commit of commits) {
+    if (commit?.commit?.verification?.verified !== true) return false;
+    if (commit?.author?.login === "dependabot[bot]") {
+      dependabotCommits += 1;
+      continue;
+    }
+    if (
+      commit?.author?.login !== "github-actions[bot]" ||
+      commit?.parents?.length !== 2 ||
+      !commit?.commit?.message?.startsWith("Merge ")
+    ) {
+      return false;
+    }
+  }
+
+  return dependabotCommits > 0;
+}
+
+export function requiredChecksAreMissing(checkRuns) {
+  return [...REQUIRED_CHECKS].some(
+    ([name, appSlug]) =>
+      !checkRuns.some((check) => check.name === name && check.app?.slug === appSlug),
+  );
+}
+
+export function requiredChecksAreGreen(checkRuns) {
+  return [...REQUIRED_BASE_CHECKS].every(([name, appSlug]) =>
+    checkRuns.some(
+      (check) =>
+        check.name === name &&
+        check.app?.slug === appSlug &&
+        check.status === "completed" &&
+        check.conclusion === "success",
+    ),
   );
 }
 
@@ -133,6 +182,19 @@ async function writeSummary(lines) {
   await appendFile(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`, "utf8");
 }
 
+async function dispatchPullRequestChecks(api, repository, headRef) {
+  await Promise.all([
+    api(`/repos/${repository}/actions/workflows/ci.yml/dispatches`, {
+      method: "POST",
+      body: { ref: headRef },
+    }),
+    api(`/repos/${repository}/actions/workflows/codeql.yml/dispatches`, {
+      method: "POST",
+      body: { ref: headRef },
+    }),
+  ]);
+}
+
 export async function reconcile({ token, repository, targetBranch = "main", dryRun = false }) {
   const api = githubClient(token);
   const encodedBranch = encodeURIComponent(targetBranch);
@@ -172,15 +234,68 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
       notes.push(`- #${number}: skipped because a commit is not verified Dependabot output.`);
       continue;
     }
-    if (comparison.merge_base_commit?.sha !== currentBaseSha) {
+    const staleBase = comparison.merge_base_commit?.sha !== currentBaseSha;
+    const actionPinOnly = pull.head.ref.startsWith("dependabot/github_actions/");
+    if (staleBase && !actionPinOnly) {
+      if (dryRun) {
+        notes.push(`- #${number}: needs an automatic update to the current ${targetBranch}.`);
+        await writeSummary(notes);
+        console.log(`Dependabot PR #${number} needs an automatic branch update.`);
+        return { merged: false, stalePullNumber: number };
+      }
+
+      await api(`/repos/${repository}/pulls/${number}/update-branch`, {
+        method: "PUT",
+        body: { expected_head_sha: pull.head.sha },
+      });
+
+      let updatedPull;
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        updatedPull = await api(`/repos/${repository}/pulls/${number}`);
+        if (updatedPull.head.sha !== pull.head.sha) break;
+      }
+      if (!updatedPull || updatedPull.head.sha === pull.head.sha) {
+        throw new Error(
+          `GitHub accepted the branch update for #${number}, but its head did not change`,
+        );
+      }
+
+      await dispatchPullRequestChecks(api, repository, updatedPull.head.ref);
       notes.push(
-        `- #${number}: waiting for Dependabot to rebase onto the current ${targetBranch}.`,
+        `- #${number}: updated to \`${updatedPull.head.sha}\` and dispatched fresh CI and CodeQL.`,
       );
-      continue;
+      await writeSummary(notes);
+      console.log(`Updated Dependabot PR #${number} and dispatched fresh checks.`);
+      return { merged: false, updatedPullNumber: number, headSha: updatedPull.head.sha };
+    }
+    if (staleBase) {
+      const [baseChecks, baseStatus] = await Promise.all([
+        api(`/repos/${repository}/commits/${currentBaseSha}/check-runs?filter=latest&per_page=100`),
+        api(`/repos/${repository}/commits/${currentBaseSha}/status?per_page=100`),
+      ]);
+      if (
+        baseChecks.total_count > baseChecks.check_runs.length ||
+        !requiredChecksAreGreen(baseChecks.check_runs) ||
+        !(baseStatus.statuses || []).every((status) => status.state === "success")
+      ) {
+        notes.push(
+          `- #${number}: waiting for checks on current ${targetBranch} \`${currentBaseSha}\`.`,
+        );
+        continue;
+      }
+      notes.push(`- #${number}: stale base accepted for a verified action-pin-only change.`);
     }
     if (checks.total_count > checks.check_runs.length) {
       notes.push(`- #${number}: skipped because not all check runs fit inside the review bound.`);
       continue;
+    }
+    if (requiredChecksAreMissing(checks.check_runs)) {
+      if (!dryRun) await dispatchPullRequestChecks(api, repository, pull.head.ref);
+      notes.push(`- #${number}: dispatched missing CI and CodeQL checks for \`${pull.head.sha}\`.`);
+      await writeSummary(notes);
+      console.log(`Dispatched missing checks for Dependabot PR #${number}.`);
+      return { merged: false, dispatchedPullNumber: number, headSha: pull.head.sha };
     }
     if (!checksAreGreen(checks.check_runs, combinedStatus.statuses || [])) {
       notes.push(`- #${number}: waiting for CI and CodeQL to pass on \`${pull.head.sha}\`.`);
@@ -200,6 +315,12 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
       await writeSummary(notes);
       console.log(`Dependabot PR #${number} is eligible for auto-merge.`);
       return { merged: false, eligiblePullNumber: number };
+    }
+
+    const latestBranch = await api(`/repos/${repository}/git/ref/heads/${encodedBranch}`);
+    if (latestBranch.object.sha !== currentBaseSha) {
+      notes.push(`- #${number}: ${targetBranch} changed during verification; retrying later.`);
+      continue;
     }
 
     const result = await api(`/repos/${repository}/pulls/${number}/merge`, {

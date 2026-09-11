@@ -44,11 +44,30 @@ function requestHeaders() {
 }
 
 async function fetchText(url) {
-  const response = await fetch(url, { headers: requestHeaders() });
-  if (!response.ok) {
-    throw new Error(`upstream request failed: ${response.status} ${url}`);
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(url, { headers: requestHeaders() });
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (response) {
+      if (response.ok) return response.text();
+      const error = new Error(`upstream request failed: ${response.status} ${url}`);
+      if (response.status !== 429 && response.status < 500) throw error;
+      lastError = error;
+    }
+
+    if (attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+    }
   }
-  return response.text();
+
+  throw new Error(`upstream request failed after 3 attempts: ${url}`, {
+    cause: lastError,
+  });
 }
 
 async function resolveLatestCommit() {
