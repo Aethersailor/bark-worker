@@ -2,16 +2,19 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    rebase-strategy: auto
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
   - package-ecosystem: gomod
     directory: /tools/bark-db
+    rebase-strategy: auto
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
   - package-ecosystem: github-actions
     directory: /
+    rebase-strategy: auto
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

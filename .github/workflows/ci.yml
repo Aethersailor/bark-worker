@@ -5,13 +5,14 @@ on:
     branches: [main]
   pull_request:
   workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   validate:
@@ -44,5 +45,27 @@ jobs:
       - name: Validate source, contracts, and build
         run: pnpm check
 
-      - name: Audit production dependencies
-        run: pnpm audit --prod --audit-level high
+      - name: Audit all dependencies
+        run: pnpm audit --audit-level high
+
+  staging:
+    needs: validate
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      vars.AUTO_DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: staging
+      source_sha: ${{ github.sha }}
+      base_url: ${{ vars.STAGING_BASE_URL }}
+    secrets: inherit
+
+  production:
+    needs: [validate, staging]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: production
+      source_sha: ${{ github.sha }}
+      base_url: ${{ vars.PRODUCTION_BASE_URL }}
+    secrets: inherit
