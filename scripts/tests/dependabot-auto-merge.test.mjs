@@ -7,6 +7,7 @@ import {
   commitsAreTrusted,
   filesMatchDependabotScope,
   isTrustedDependabotPullRequest,
+  mergeStateIsAcceptable,
   requiredChecksAreGreen,
   requiredChecksAreMissing,
 } from "../dependabot-auto-merge.mjs";
@@ -171,4 +172,12 @@ test("requires every expected check from the expected GitHub App", () => {
     ]),
     false,
   );
+});
+
+test("accepts only mergeable states compatible with verified checks", () => {
+  assert.equal(mergeStateIsAcceptable("clean"), true);
+  assert.equal(mergeStateIsAcceptable("unstable"), true);
+  assert.equal(mergeStateIsAcceptable("blocked"), false);
+  assert.equal(mergeStateIsAcceptable("dirty"), false);
+  assert.equal(mergeStateIsAcceptable("unknown"), false);
 });

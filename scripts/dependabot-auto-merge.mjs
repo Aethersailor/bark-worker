@@ -135,6 +135,10 @@ export function checksAreGreen(checkRuns, statuses = []) {
   return everyCheckPassed && everyStatusPassed;
 }
 
+export function mergeStateIsAcceptable(state) {
+  return state === "clean" || state === "unstable";
+}
+
 function githubClient(token) {
   const headers = {
     Accept: "application/vnd.github+json",
@@ -350,7 +354,7 @@ export async function reconcile({
     }
     if (
       pull.mergeable !== true ||
-      pull.mergeable_state !== "clean" ||
+      !mergeStateIsAcceptable(pull.mergeable_state) ||
       pull.has_blocking_discussions_resolved === false
     ) {
       notes.push(`- #${number}: waiting for GitHub to report a clean merge.`);
