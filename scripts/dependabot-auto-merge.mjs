@@ -1,3 +1,4 @@
+import { sign } from "node:crypto";
 import { appendFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
@@ -177,6 +178,33 @@ function githubClient(token) {
   };
 }
 
+async function resolveAutomationToken({ fallbackToken, appId, privateKey, repository }) {
+  if (!appId || !privateKey) {
+    return { token: fallbackToken, canManageWorkflows: false };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const unsigned = `${encode({ alg: "RS256", typ: "JWT" })}.${encode({ iat: now - 60, exp: now + 540, iss: appId })}`;
+  const signature = sign("RSA-SHA256", Buffer.from(unsigned), privateKey.replace(/\\n/g, "\n"));
+  const jwt = `${unsigned}.${signature.toString("base64url")}`;
+  const appApi = githubClient(jwt);
+  const installation = await appApi(`/repos/${repository}/installation`);
+  const access = await appApi(`/app/installations/${installation.id}/access_tokens`, {
+    method: "POST",
+    body: {
+      permissions: {
+        actions: "write",
+        contents: "write",
+        pull_requests: "write",
+        workflows: "write",
+      },
+    },
+  });
+  if (!access?.token) throw new Error("GitHub App did not return an installation token");
+  return { token: access.token, canManageWorkflows: true };
+}
+
 async function writeSummary(lines) {
   if (!process.env.GITHUB_STEP_SUMMARY) return;
   await appendFile(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`, "utf8");
@@ -208,7 +236,13 @@ async function dispatchPullRequestChecks(
   await Promise.all(requests);
 }
 
-export async function reconcile({ token, repository, targetBranch = "main", dryRun = false }) {
+export async function reconcile({
+  token,
+  repository,
+  targetBranch = "main",
+  dryRun = false,
+  canManageWorkflows = false,
+}) {
   const api = githubClient(token);
   const encodedBranch = encodeURIComponent(targetBranch);
   const branch = await api(`/repos/${repository}/git/ref/heads/${encodedBranch}`);
@@ -249,7 +283,11 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
     }
     const staleBase = comparison.merge_base_commit?.sha !== currentBaseSha;
     const actionPinOnly = pull.head.ref.startsWith("dependabot/github_actions/");
-    if (staleBase && !actionPinOnly) {
+    if (actionPinOnly && !canManageWorkflows) {
+      notes.push(`- #${number}: waiting for the repository-scoped GitHub App credential.`);
+      continue;
+    }
+    if (staleBase) {
       if (dryRun) {
         notes.push(`- #${number}: needs an automatic update to the current ${targetBranch}.`);
         await writeSummary(notes);
@@ -281,23 +319,6 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
       await writeSummary(notes);
       console.log(`Updated Dependabot PR #${number} and dispatched fresh checks.`);
       return { merged: false, updatedPullNumber: number, headSha: updatedPull.head.sha };
-    }
-    if (staleBase) {
-      const [baseChecks, baseStatus] = await Promise.all([
-        api(`/repos/${repository}/commits/${currentBaseSha}/check-runs?filter=latest&per_page=100`),
-        api(`/repos/${repository}/commits/${currentBaseSha}/status?per_page=100`),
-      ]);
-      if (
-        baseChecks.total_count > baseChecks.check_runs.length ||
-        !requiredChecksAreGreen(baseChecks.check_runs) ||
-        !(baseStatus.statuses || []).every((status) => status.state === "success")
-      ) {
-        notes.push(
-          `- #${number}: waiting for checks on current ${targetBranch} \`${currentBaseSha}\`.`,
-        );
-        continue;
-      }
-      notes.push(`- #${number}: stale base accepted for a verified action-pin-only change.`);
     }
     if (checks.total_count > checks.check_runs.length) {
       notes.push(`- #${number}: skipped because not all check runs fit inside the review bound.`);
@@ -364,11 +385,15 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
       throw new Error(`GitHub did not merge #${number}: ${result?.message || "unknown result"}`);
     }
 
-    await api(`/repos/${repository}/actions/workflows/ci.yml/dispatches`, {
-      method: "POST",
-      body: { ref: targetBranch },
-    });
-    notes.push(`- #${number}: merged as \`${result.sha}\`; dispatched CI on ${targetBranch}.`);
+    if (!canManageWorkflows) {
+      await api(`/repos/${repository}/actions/workflows/ci.yml/dispatches`, {
+        method: "POST",
+        body: { ref: targetBranch },
+      });
+    }
+    notes.push(
+      `- #${number}: merged as \`${result.sha}\`; ${canManageWorkflows ? "normal push automation will continue" : `dispatched CI on ${targetBranch}`}.`,
+    );
     await writeSummary(notes);
     console.log(`Merged Dependabot PR #${number} as ${result.sha}`);
     return { merged: true, pullNumber: number, mergeSha: result.sha };
@@ -381,13 +406,19 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
 }
 
 async function main() {
-  const token = process.env.GITHUB_TOKEN;
+  const fallbackToken = process.env.GITHUB_TOKEN;
   const repository = process.env.GITHUB_REPOSITORY;
   const targetBranch = process.env.TARGET_BRANCH || "main";
   const dryRun = process.env.DRY_RUN === "true";
-  if (!token) throw new Error("GITHUB_TOKEN is required");
+  if (!fallbackToken) throw new Error("GITHUB_TOKEN is required");
   if (!repository) throw new Error("GITHUB_REPOSITORY is required");
-  await reconcile({ token, repository, targetBranch, dryRun });
+  const { token, canManageWorkflows } = await resolveAutomationToken({
+    fallbackToken,
+    appId: process.env.GITHUB_APP_ID,
+    privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
+    repository,
+  });
+  await reconcile({ token, repository, targetBranch, dryRun, canManageWorkflows });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

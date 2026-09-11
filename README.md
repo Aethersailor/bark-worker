@@ -109,6 +109,8 @@ Dependabot 每周检查 npm、Go module 和 GitHub Actions 依赖。受信任的
 
 协调器每次只合并一个 PR；其余 PR 会自动更新到最新 `main`，并在更新后的精确 head SHA 上重新运行 CI 和 CodeQL。合并会显式触发 `main` CI，该次 CI 验证精确合并 SHA 后直接执行 Staging → Production 发布链，避免 `GITHUB_TOKEN` 的工作流递归保护中断发布。检查失败、来源异常或越界文件会保持未合并，定时协调器会在条件恢复后继续处理。
 
+GitHub 不允许默认 `GITHUB_TOKEN` 更新或合并工作流文件。为覆盖 GitHub Actions 依赖，仓库使用仅安装到本仓库的 GitHub App，并从 `DEPENDABOT_MERGE_APP_ID`、`DEPENDABOT_MERGE_APP_PRIVATE_KEY` Secrets 每次签发短期令牌；不保存个人 PAT。未配置 App 时，npm 和 Go 依赖仍会自动维护，Actions PR 会安全等待。
+
 ## 安全
 
 - `APNS_PRIVATE_KEY` 只存放在 Cloudflare secret 或临时部署文件中。

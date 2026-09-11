@@ -38,6 +38,8 @@ jobs:
 
       - name: Reconcile Dependabot pull requests
         env:
+          GITHUB_APP_ID: ${{ secrets.DEPENDABOT_MERGE_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.DEPENDABOT_MERGE_APP_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_BRANCH: main
         run: node scripts/dependabot-auto-merge.mjs
