@@ -45,8 +45,8 @@ jobs:
       - name: Validate source, contracts, and build
         run: pnpm check
 
-      - name: Audit production dependencies
-        run: pnpm audit --prod --audit-level high
+      - name: Audit all dependencies
+        run: pnpm audit --audit-level high
 
   staging:
     needs: validate

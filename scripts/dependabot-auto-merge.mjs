@@ -27,7 +27,9 @@ export function filesMatchDependabotScope(headRef, files) {
   if (names.length === 0) return false;
 
   if (headRef.startsWith("dependabot/npm_and_yarn/")) {
-    return names.every((name) => name === "package.json" || name === "pnpm-lock.yaml");
+    return names.every((name) =>
+      ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"].includes(name),
+    );
   }
 
   if (headRef.startsWith("dependabot/go_modules/tools/bark-db/")) {

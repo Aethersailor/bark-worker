@@ -50,6 +50,7 @@ test("limits changed files to the Dependabot ecosystem scope", () => {
     filesMatchDependabotScope("dependabot/npm_and_yarn/hono-4.13.7", [
       { filename: "package.json" },
       { filename: "pnpm-lock.yaml" },
+      { filename: "pnpm-workspace.yaml" },
     ]),
     true,
   );
