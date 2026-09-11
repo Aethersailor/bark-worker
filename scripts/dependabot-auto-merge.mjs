@@ -182,17 +182,30 @@ async function writeSummary(lines) {
   await appendFile(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`, "utf8");
 }
 
-async function dispatchPullRequestChecks(api, repository, headRef) {
-  await Promise.all([
-    api(`/repos/${repository}/actions/workflows/ci.yml/dispatches`, {
-      method: "POST",
-      body: { ref: headRef },
-    }),
-    api(`/repos/${repository}/actions/workflows/codeql.yml/dispatches`, {
-      method: "POST",
-      body: { ref: headRef },
-    }),
-  ]);
+async function dispatchPullRequestChecks(
+  api,
+  repository,
+  headRef,
+  { ci = true, codeql = true } = {},
+) {
+  const requests = [];
+  if (ci) {
+    requests.push(
+      api(`/repos/${repository}/actions/workflows/ci.yml/dispatches`, {
+        method: "POST",
+        body: { ref: headRef },
+      }),
+    );
+  }
+  if (codeql) {
+    requests.push(
+      api(`/repos/${repository}/actions/workflows/codeql.yml/dispatches`, {
+        method: "POST",
+        body: { ref: headRef },
+      }),
+    );
+  }
+  await Promise.all(requests);
 }
 
 export async function reconcile({ token, repository, targetBranch = "main", dryRun = false }) {
@@ -291,11 +304,24 @@ export async function reconcile({ token, repository, targetBranch = "main", dryR
       continue;
     }
     if (requiredChecksAreMissing(checks.check_runs)) {
-      if (!dryRun) await dispatchPullRequestChecks(api, repository, pull.head.ref);
-      notes.push(`- #${number}: dispatched missing CI and CodeQL checks for \`${pull.head.sha}\`.`);
-      await writeSummary(notes);
-      console.log(`Dispatched missing checks for Dependabot PR #${number}.`);
-      return { merged: false, dispatchedPullNumber: number, headSha: pull.head.sha };
+      const ciStarted = checks.check_runs.some((check) => check.name === "validate");
+      const codeqlStarted = checks.check_runs.some(
+        (check) => check.name === "CodeQL" || check.name.startsWith("analyze ("),
+      );
+      if (!ciStarted || !codeqlStarted) {
+        if (!dryRun) {
+          await dispatchPullRequestChecks(api, repository, pull.head.ref, {
+            ci: !ciStarted,
+            codeql: !codeqlStarted,
+          });
+        }
+        notes.push(`- #${number}: dispatched missing checks for \`${pull.head.sha}\`.`);
+        await writeSummary(notes);
+        console.log(`Dispatched missing checks for Dependabot PR #${number}.`);
+        return { merged: false, dispatchedPullNumber: number, headSha: pull.head.sha };
+      }
+      notes.push(`- #${number}: waiting for dispatched checks on \`${pull.head.sha}\`.`);
+      continue;
     }
     if (!checksAreGreen(checks.check_runs, combinedStatus.statuses || [])) {
       notes.push(`- #${number}: waiting for CI and CodeQL to pass on \`${pull.head.sha}\`.`);
