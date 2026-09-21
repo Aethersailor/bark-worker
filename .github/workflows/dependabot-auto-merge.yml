@@ -66,9 +66,12 @@ jobs:
             main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
             merge_base=$(gh api "repos/$GITHUB_REPOSITORY/compare/$main_sha...$head_sha" --jq '.merge_base_commit.sha')
             if [[ "$merge_base" != "$main_sha" ]]; then
-              gh api --method PUT "repos/$GITHUB_REPOSITORY/pulls/$pr/update-branch" -f expected_head_sha="$head_sha" >/dev/null
-              echo "Updated Dependabot PR #$pr; fresh PR checks will run automatically."
-              exit 0
+              if gh api --method PUT "repos/$GITHUB_REPOSITORY/pulls/$pr/update-branch" -f expected_head_sha="$head_sha" >/dev/null; then
+                echo "Updated Dependabot PR #$pr; fresh PR checks will run automatically."
+                exit 0
+              fi
+              echo "Dependabot PR #$pr cannot be updated yet; checking the next pull request."
+              continue
             fi
 
             if ! timeout 8m gh pr checks "$pr" --repo "$GITHUB_REPOSITORY" --watch --fail-fast --interval 10; then
