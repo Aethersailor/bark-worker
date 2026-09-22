@@ -26,7 +26,7 @@
     "upstream:sync": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json --write"
   },
   "dependencies": {
-    "hono": "^4.13.7"
+    "hono": "^4.13.8"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.1.8",
