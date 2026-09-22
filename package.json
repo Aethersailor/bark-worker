@@ -29,7 +29,7 @@
     "hono": "^4.13.8"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.1.8",
+    "@cloudflare/vitest-plugin": "^1.1.13",
     "@cloudflare/workers-types": "^5.20260919.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.2",
