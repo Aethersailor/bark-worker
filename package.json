@@ -26,14 +26,14 @@
     "upstream:sync": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json --write"
   },
   "dependencies": {
-    "hono": "^4.13.7"
+    "hono": "^4.13.8"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.1.8",
     "@cloudflare/workers-types": "^5.20260919.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.2",
-    "eslint": "^10.10.0",
+    "eslint": "^10.11.0",
     "globals": "^17.12.0",
     "prettier": "^3.9.8",
     "typescript": "^6.0.3",
