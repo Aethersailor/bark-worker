@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "repository": "Finb/bark-server",
   "branch": "master",
-  "commit": "3df8990fcbc407a3f5638eea8cedc3289d1a405d",
-  "verifiedAt": "2026-09-01T14:55:35.657Z",
+  "commit": "8eda67fde66c03366ae9d284dd08fcf6ceec3377",
+  "verifiedAt": "2026-09-23T08:41:42.388Z",
   "semanticFiles": [
     "main.go",
     "router.go",
