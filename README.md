@@ -2,7 +2,7 @@
 
 `bark-worker` 是 [`Finb/bark-server`](https://github.com/Finb/bark-server) 的 Cloudflare Workers 独立实现。项目使用 TypeScript、Hono 和 Cloudflare D1，面向个人 Bark 服务，在免费套餐限制内保持 Bark HTTP API、APNs 推送和 MCP `notify` 工具兼容。
 
-项目不依赖 Workers KV、Durable Objects、R2、Queues 或 Containers。唯一主要上游是 `Finb/bark-server`。
+设备数据存储在 D1 中，无需配置 Workers KV、Durable Objects、R2、Queues 或 Containers。首次部署请参阅 [部署手册](docs/DEPLOYMENT.md)。
 
 ## 主要能力
 
@@ -12,7 +12,7 @@
 - 使用 D1 保存 `device_key → device_token`。
 - 使用 Web Crypto 生成 APNs ES256 JWT。
 - 自动限制请求体、批量并发和设备数量。
-- 自动监测上游；语义文件变化时停止部署并创建 Issue。
+- 自动监测上游；行为相关文件变化时暂停同步并创建兼容性审查 Issue。
 - 提供 Bbolt 导出、恢复和 D1 导入工具。
 
 ## API
@@ -93,8 +93,8 @@ pnpm upstream:check
 `upstream/UPSTREAM.lock.json` 固定上游仓库、精确 SHA、受监控文件哈希和提取后的接口契约。
 
 - 文档或测试变化且语义文件未变化时，定时工作流可以安全更新锁文件。
-- 路由、数据库接口、APNs 或服务启动逻辑变化时，工作流创建 Issue 并停止自动部署。
-- 项目不会尝试自动把任意 Go 代码翻译为 TypeScript。
+- 路由、数据库接口、APNs 或服务启动逻辑所在文件变化时，工作流创建 Issue，并阻止该次同步更新与部署。
+- 维护者审查差异并完成必要适配后，按精确提交更新锁文件；尚未审查的变化继续阻断。
 
 维护规则见 [上游同步说明](docs/UPSTREAM_SYNC.md)。
 
@@ -120,4 +120,4 @@ Dependabot 每周检查 npm、Go module 和 GitHub Actions 依赖。自动合并
 
 ## 许可证与归属
 
-项目使用 MIT License。`Finb/bark-server` 是行为和 APNs 配置的主要上游。初始 TypeScript 兼容层参考了 MIT 项目 `frankwei98/bark-serverless`；本项目不跟踪该项目，也未使用 `cwxiaos/bark-worker` 的 GPL 代码。详见 [NOTICE](NOTICE.md) 和 [UPSTREAM](UPSTREAM.md)。
+项目采用 [MIT License](LICENSE)。Bark API 行为和 APNs 配置以 `Finb/bark-server` 为兼容目标；初始 TypeScript 兼容层源自 MIT 项目 `frankwei98/bark-serverless`。代码来源与归属见 [NOTICE](NOTICE.md)，上游跟踪范围见 [UPSTREAM](UPSTREAM.md)。

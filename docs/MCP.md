@@ -13,6 +13,8 @@ Bark supports the [Model Context Protocol (MCP)](https://modelcontextprotocol.io
 
 If `MCP_SESSION_SECRET` is configured, `initialize` returns `Mcp-Session-Id`, which clients may reuse on later requests. Existing clients may still skip `initialize` and call tools directly for backward compatibility, so the session secret is not an access-control boundary. Use Basic Auth to restrict MCP access.
 
+Session IDs are signed, stateless tokens with a fixed 24-hour lifetime. The Worker does not store sessions in memory or D1 and does not refresh their expiry on requests. An expired token returns `404`; clients can initialize again without the old token. This differs from the Go server's 10-minute idle-session cleanup, which reclaims server-side session objects.
+
 The endpoint accepts one JSON-RPC message per POST. JSON-RPC batch arrays are rejected with `400`.
 
 ### Examples

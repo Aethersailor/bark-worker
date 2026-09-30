@@ -17,3 +17,5 @@ minimumReleaseAgeExclude:
   - globals@17.12.0
 overrides:
   sharp: ^0.35.4
+  # Miniflare pins 7.29.0; keep its toolchain on the patched Undici 7.x line.
+  "undici@>=7.0.0 <7.29.1": 7.29.1

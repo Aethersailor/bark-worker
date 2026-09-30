@@ -931,6 +931,29 @@ describe("mcp compatibility", () => {
     expect(body.error!.message).toContain("device_key mismatch");
   });
 
+  it.each(["/mcp", "/mcp/key-a"])(
+    "%s sessions work across instances until their fixed expiry",
+    async (endpoint) => {
+      const baseTime = 1_700_000_000;
+      const config = { mcpSessionSecret: "test-secret" };
+      const issuer = createHarness({ config, now: () => baseTime });
+      const initialized = await jsonRpcRequest(issuer.app, endpoint, "initialize", {
+        protocolVersion: "2025-06-18",
+      });
+      const sessionId = initialized.headers.get("Mcp-Session-Id")!;
+      expect(sessionId).toBeTruthy();
+
+      // Each request uses a fresh instance with no server-side session state.
+      for (const elapsed of [10 * 60 + 1, 24 * 60 * 60 - 1, 24 * 60 * 60]) {
+        const receiver = createHarness({ config, now: () => baseTime + elapsed });
+        const response = await jsonRpcRequest(receiver.app, endpoint, "tools/list", undefined, 1, {
+          "mcp-session-id": sessionId,
+        });
+        expect(response.status).toBe(elapsed < 24 * 60 * 60 ? 200 : 404);
+      }
+    },
+  );
+
   it("expired session returns 404", async () => {
     const secret = "test-secret";
     const baseTime = 1_700_000_000;

@@ -168,21 +168,31 @@ async function appendOutput(values) {
 
 const lockPath = argumentValue("--lock");
 if (!lockPath) {
-  throw new Error("usage: check-upstream.mjs --lock <path> [--write] [--latest]");
+  throw new Error(
+    "usage: check-upstream.mjs --lock <path> [--write [--accept-commit <sha>]] [--latest]",
+  );
+}
+
+const write = process.argv.includes("--write");
+const acceptCommit = argumentValue("--accept-commit");
+if (
+  process.argv.includes("--accept-commit") &&
+  (!write || !acceptCommit || !/^[0-9a-f]{40}$/.test(acceptCommit))
+) {
+  throw new Error("--accept-commit requires --write and an exact 40-character commit SHA");
 }
 
 let previous = null;
 try {
   previous = JSON.parse(await readFile(lockPath, "utf8"));
 } catch (error) {
-  if (!process.argv.includes("--write")) {
+  if (!write || error.code !== "ENOENT") {
     throw error;
   }
 }
 
-const write = process.argv.includes("--write");
 const latest = write || process.argv.includes("--latest");
-const commit = latest ? await resolveLatestCommit() : previous?.commit;
+const commit = acceptCommit ?? (latest ? await resolveLatestCommit() : previous?.commit);
 if (!commit || !/^[0-9a-f]{40}$/.test(commit)) {
   throw new Error("lock file does not contain a valid upstream commit");
 }
@@ -201,9 +211,9 @@ if (!write) {
   process.exit(0);
 }
 
-if (previous && previous.commit !== next.commit) {
+if (previous) {
   const changes = semanticChanges(previous, next);
-  if (changes.length > 0) {
+  if (changes.length > 0 && !acceptCommit) {
     await appendOutput({
       changed: "true",
       safe: "false",
@@ -215,9 +225,18 @@ if (previous && previous.commit !== next.commit) {
   }
 }
 
+if (
+  previous &&
+  JSON.stringify({ ...previous, verifiedAt: next.verifiedAt }) === JSON.stringify(next)
+) {
+  await appendOutput({ changed: "false", safe: "true", upstream_sha: commit });
+  console.log(`upstream lock already current at ${commit}`);
+  process.exit(0);
+}
+
 await writeFile(lockPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
 await appendOutput({
-  changed: previous?.commit === next.commit ? "false" : "true",
+  changed: "true",
   safe: "true",
   upstream_sha: commit,
 });

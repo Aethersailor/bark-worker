@@ -14,4 +14,4 @@ This repository replaced its KV and Durable Object storage with D1, corrected re
 
 ## Independence
 
-This project is independently maintained and is not affiliated with Finb, Apple or Cloudflare. It does not include code from the GPL-3.0 project `cwxiaos/bark-worker`.
+This project is independently maintained and is not affiliated with Finb, Apple or Cloudflare.
