@@ -4,8 +4,15 @@
   "main": "worker/src/index.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  "preview_urls": true,
+  "preview_urls": false,
   "workers_dev": true,
+  "ratelimits": [
+    {
+      "name": "REQUEST_LIMITER",
+      "namespace_id": "10707006",
+      "simple": { "limit": 120, "period": 60 },
+    },
+  ],
   "observability": {
     "enabled": true,
     "logs": {
@@ -40,6 +47,13 @@
   "env": {
     "staging": {
       "name": "bark-worker-staging",
+      "ratelimits": [
+        {
+          "name": "REQUEST_LIMITER",
+          "namespace_id": "10707005",
+          "simple": { "limit": 120, "period": 60 },
+        },
+      ],
       "vars": {
         "ENVIRONMENT": "staging",
         "URL_PREFIX": "/",
@@ -67,6 +81,13 @@
     },
     "production": {
       "name": "bark-worker",
+      "ratelimits": [
+        {
+          "name": "REQUEST_LIMITER",
+          "namespace_id": "10707002",
+          "simple": { "limit": 120, "period": 60 },
+        },
+      ],
       "vars": {
         "ENVIRONMENT": "production",
         "URL_PREFIX": "/",

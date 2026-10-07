@@ -49,6 +49,14 @@
 
 首次配置 Bark App 时使用 `open`。完成设备注册或旧数据导入后，生产环境建议改为 `existing-only`。
 
+## 请求保护与费用边界
+
+注册、推送、MCP 和 `/info` 等接口在访问数据库或 APNs 前调用 `REQUEST_LIMITER`。默认限制同一 IP 在单个 Cloudflare 节点每分钟最多 120 次请求；本地、测试和生产环境使用独立计数器。绑定缺失或限流服务出错时返回 `503`，超限时返回 `429` 并附带 `Retry-After: 60`。`GET /`、`GET /ping` 和 `GET /healthz` 不访问数据库，仍可用于健康检查。
+
+限流用于降低滥用风险，不能作为全账户费用上限。需要阻止 Workers 和 D1 超额计费时，应保留 Workers Free 套餐；额度耗尽后操作会失败。付费套餐按超额用量计费，预算告警只通知、不停止用量。不要为此项目启用独立计费产品。
+
+版本预览 URL 默认禁用，避免历史实现绕过当前入口保护。正式 Worker 地址仍用于 Bark App 和部署验收。
+
 ## 部署
 
 部署前需要 Cloudflare 账户、两个 D1 数据库和已认证的 Wrangler。按照 [部署手册](docs/DEPLOYMENT.md) 创建资源、配置 APNs secret、运行迁移并验证公开端点。
