@@ -3,6 +3,7 @@ import { createBuildInfoFromEnv, createConfigFromEnv } from "@/config";
 import { CloudflareApnsClient } from "@/services/cloudflare-apns-client";
 import { D1DeviceRegistry } from "@/services/d1-device-registry";
 import type { RuntimeEnv } from "@/types";
+import { protectRequest } from "@/utils/request-protection";
 
 const appCache = new WeakMap<RuntimeEnv, ReturnType<typeof createApp>>();
 
@@ -34,7 +35,11 @@ function buildApp(env: RuntimeEnv) {
 }
 
 export default {
-  fetch(request: Request, env: RuntimeEnv, executionContext: ExecutionContext) {
+  async fetch(request: Request, env: RuntimeEnv, executionContext: ExecutionContext) {
+    const rejection = await protectRequest(request, env);
+    if (rejection) {
+      return rejection;
+    }
     return buildApp(env).fetch(request, env, executionContext);
   },
 } satisfies ExportedHandler<RuntimeEnv>;
