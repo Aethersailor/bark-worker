@@ -21,10 +21,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+    - name: Create repository-scoped maintenance token
+      id: app-token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+      with:
+        client-id: Iv23liPAfv8dJNAG2wBE
+        private-key: ${{ secrets.DEPENDABOT_MERGE_APP_PRIVATE_KEY }}
+        owner: Aethersailor
+        repositories: bark-worker
+        permission-actions: read
+        permission-contents: write
+        permission-pull-requests: write
+        permission-workflows: write
+    - name: Record maintenance installation identity
+      env:
+        INSTALLATION_ID: ${{ steps.app-token.outputs.installation-id }}
+      run: |
+        printf "Maintenance App installation: %s\n" "$INSTALLATION_ID" >>"$GITHUB_STEP_SUMMARY"
+        printf "APP_INSTALLATION_ID=%s\n" "$INSTALLATION_ID"
     - name: Merge current Dependabot updates
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
       env:
-        AFTER_MERGE_WORKFLOWS: '["codeql.yml", "release.yml"]'
+        AFTER_MERGE_WORKFLOWS: '[]'
       with:
         script: |
           const repo = context.repo;
@@ -70,7 +88,7 @@ jobs:
               merged++;
               core.info(`Merged Dependabot PR #${pr.number} at ${result.data.sha}.`);
             } catch (error) {
-              if (![405, 409, 422].includes(error.status)) throw error;
+              if (![403, 405, 409, 422].includes(error.status)) throw error;
               core.warning(`PR #${pr.number} changed or is not mergeable yet: ${error.message}`);
             }
           }
@@ -85,3 +103,4 @@ jobs:
             }
           }
           await core.summary.addRaw(`Merged ${merged} Dependabot pull request(s). CodeQL and builds do not gate merging.`).write();
+        github-token: ${{ steps.app-token.outputs.token }}
