@@ -108,6 +108,8 @@ Dependabot 每天检查 npm、Go module 和 GitHub Actions 依赖。自动合并
 
 更新无需人工批准，不等待 CodeQL 或构建结果。合并产生的 push 事件触发独立扫描及现有发布工作流；发布继续遵守 `AUTO_DEPLOY_ENABLED` 设置。每 6 小时自动核对开放 PR，补偿遗漏事件。
 
+其他已授权仓库的工作流依赖由 `Dependabot workflow maintenance` 每 30 分钟自动处理，普通依赖继续由各仓库的事件工作流合并。仓库清单保存在 `DEPENDABOT_MERGE_REPOSITORIES` secret，私钥仅保存在本仓库。该任务只读取 GitHub 元数据，不检出或执行 PR 源码；合并后由目标仓库的 push 事件触发扫描和构建。
+
 ## 安全
 
 - `APNS_PRIVATE_KEY` 只存放在 Cloudflare secret 或临时部署文件中。
