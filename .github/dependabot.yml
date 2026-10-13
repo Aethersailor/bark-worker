@@ -1,24 +1,41 @@
 version: 2
 updates:
-  - package-ecosystem: npm
-    directory: /
-    rebase-strategy: auto
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-  - package-ecosystem: gomod
-    directory: /tools/bark-db
-    rebase-strategy: auto
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
-  - package-ecosystem: github-actions
-    directory: /
-    rebase-strategy: auto
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    groups:
-      codeql:
-        patterns:
-          - github/codeql-action/*
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: daily
+    time: 08:00
+    timezone: Asia/Shanghai
+  open-pull-requests-limit: 20
+  groups:
+    dependencies:
+      patterns:
+      - '*'
+  commit-message:
+    prefix: chore(deps)
+- package-ecosystem: gomod
+  directory: /tools/bark-db
+  schedule:
+    interval: daily
+    time: 08:00
+    timezone: Asia/Shanghai
+  open-pull-requests-limit: 20
+  groups:
+    dependencies:
+      patterns:
+      - '*'
+  commit-message:
+    prefix: chore(deps)
+- package-ecosystem: npm
+  directory: /
+  schedule:
+    interval: daily
+    time: 08:00
+    timezone: Asia/Shanghai
+  open-pull-requests-limit: 20
+  groups:
+    dependencies:
+      patterns:
+      - '*'
+  commit-message:
+    prefix: chore(deps)

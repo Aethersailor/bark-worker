@@ -7,7 +7,6 @@ dist
 .vscode/
 node_modules/
 .wrangler/
-coverage/
 worker-configuration.d.ts
 *.bark.db
 *.bark-backup.sql

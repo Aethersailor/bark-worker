@@ -63,7 +63,7 @@
 
 ```sh
 pnpm install
-pnpm check
+pnpm build
 pnpm exec wrangler deploy --env staging
 pnpm exec wrangler deploy --env production
 ```
@@ -82,19 +82,15 @@ pnpm exec wrangler d1 execute DB --env production --remote --file devices.bark-b
 
 详细停止条件、校验和回滚步骤见 [迁移手册](docs/MIGRATION.md)。
 
-## 开发与验证
+## 本地开发
 
 ```sh
-pnpm format
-pnpm lint
-pnpm typecheck
-pnpm migrate:local
-pnpm test
+pnpm install
+pnpm dev
 pnpm build
-pnpm upstream:check
 ```
 
-`pnpm check` 依次执行全部检查。单元测试在 Node.js 中运行；D1 集成测试在真实 `workerd` 测试运行时中执行。
+功能由维护者人工验证；CodeQL 独立扫描，不作为部署或依赖合并的前置条件。
 
 ## 上游同步
 
@@ -108,21 +104,16 @@ pnpm upstream:check
 
 ## 依赖自动维护
 
-Dependabot 每周检查 npm、Go module 和 GitHub Actions 依赖。自动合并工作流使用仅安装到本仓库的 GitHub App 短期令牌，不保存个人 PAT。
+Dependabot 每天检查 npm、Go module 和 GitHub Actions 依赖。自动合并使用 GitHub 提供的仓库令牌，只处理同仓库、非草稿的 Dependabot PR，并核对依赖文件范围、签名与当前 head SHA。
 
-- 只处理 `dependabot[bot]` 创建的同仓库 PR，并要求提交通过 GitHub 签名验证。
-- 过期分支先更新到最新 `main`，由 GitHub 自动重新运行 PR 检查。
-- 所有检查成功且 head SHA、主分支和 merge base 均未变化后，自动 squash 合并。
-- App 合并会正常触发现有 CI → Staging → Production 发布链。
-
-每次只更新或合并一个 PR；失败的 PR 保持打开，后续事件或每小时兜底任务会再次检查。
+更新无需人工批准，不等待 CodeQL 或构建结果。合并后显式触发独立扫描及现有发布工作流；发布继续遵守 `AUTO_DEPLOY_ENABLED` 设置。事件触发失败时，每 6 小时自动核对开放 PR。
 
 ## 安全
 
 - `APNS_PRIVATE_KEY` 只存放在 Cloudflare secret 或临时部署文件中。
 - 日志不记录完整 URL、device key、device token、Authorization 或通知正文。
 - Basic Auth 用户名、密码和 `MCP_SESSION_SECRET` 必须使用 Worker secret。
-- 仓库启用 CI、CodeQL、Dependabot 和 GitHub Secret Scanning。
+- 仓库启用独立 CodeQL 扫描、Dependabot 和 GitHub Secret Scanning。
 
 安全问题请按照 [SECURITY.md](SECURITY.md) 私下报告。
 

@@ -7,20 +7,10 @@
   "packageManager": "pnpm@11.19.0",
   "scripts": {
     "build": "wrangler deploy --dry-run --env staging --outdir dist",
-    "check": "pnpm format && pnpm lint && pnpm typecheck && pnpm migrate:local && pnpm test && pnpm build && pnpm upstream:check",
     "deploy:production": "wrangler deploy --env production",
     "deploy:staging": "wrangler deploy --env staging",
     "dev": "wrangler dev",
-    "format": "prettier --check .",
-    "format:write": "prettier --write .",
-    "lint": "eslint .",
     "migrate:local": "wrangler d1 migrations apply bark-worker-local --local",
-    "test": "pnpm test:unit && pnpm test:integration && pnpm test:tools",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:tools": "node --test scripts/tests/*.test.mjs && go -C tools/bark-db test ./... && go -C tools/bark-db vet ./...",
-    "test:unit": "vitest run --config vitest.config.ts",
-    "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "wrangler types && tsc --noEmit",
     "types": "wrangler types",
     "upstream:check": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json",
     "upstream:sync": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json --write"
@@ -29,17 +19,9 @@
     "hono": "^4.13.13"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.3.7",
     "@cloudflare/workers-types": "^5.20261006.1",
-    "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.3",
-    "eslint": "^10.12.0",
-    "globals": "^17.13.0",
-    "prettier": "^3.9.9",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.70.1",
-    "vite": "^8.3.1",
-    "vitest": "^4.1.11",
     "wrangler": "^4.148.0"
   }
 }

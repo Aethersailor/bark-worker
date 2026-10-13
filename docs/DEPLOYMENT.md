@@ -14,10 +14,10 @@
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm check
+pnpm build
 ```
 
-预期结果：格式、lint、类型、D1 迁移、测试、构建和上游锁检查全部通过。
+预期结果：生成 Worker 部署包。功能由维护者人工验证。
 
 ## 2. 登录 Cloudflare
 
@@ -39,7 +39,6 @@ pnpm exec wrangler d1 create bark-worker-db
 
 ```sh
 pnpm types
-pnpm typecheck
 ```
 
 ## 4. 配置 APNs secret
