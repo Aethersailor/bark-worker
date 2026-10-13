@@ -33,12 +33,6 @@ jobs:
         permission-contents: write
         permission-pull-requests: write
         permission-workflows: write
-    - name: Record maintenance installation identity
-      env:
-        INSTALLATION_ID: ${{ steps.app-token.outputs.installation-id }}
-      run: |
-        printf "Maintenance App installation: %s\n" "$INSTALLATION_ID" >>"$GITHUB_STEP_SUMMARY"
-        printf "APP_INSTALLATION_ID=%s\n" "$INSTALLATION_ID"
     - name: Merge current Dependabot updates
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
       env:

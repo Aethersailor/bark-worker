@@ -104,9 +104,9 @@ pnpm build
 
 ## 依赖自动维护
 
-Dependabot 每天检查 npm、Go module 和 GitHub Actions 依赖。自动合并使用 GitHub 提供的仓库令牌，只处理同仓库、非草稿的 Dependabot PR，并核对依赖文件范围、签名与当前 head SHA。
+Dependabot 每天检查 npm、Go module 和 GitHub Actions 依赖。自动合并使用维护 App 为本仓库签发的短期令牌，只处理同仓库、非草稿的 Dependabot PR，并核对依赖文件范围、签名与当前 head SHA。
 
-更新无需人工批准，不等待 CodeQL 或构建结果。合并后显式触发独立扫描及现有发布工作流；发布继续遵守 `AUTO_DEPLOY_ENABLED` 设置。事件触发失败时，每 6 小时自动核对开放 PR。
+更新无需人工批准，不等待 CodeQL 或构建结果。合并产生的 push 事件触发独立扫描及现有发布工作流；发布继续遵守 `AUTO_DEPLOY_ENABLED` 设置。每 6 小时自动核对开放 PR，补偿遗漏事件。
 
 ## 安全
 
