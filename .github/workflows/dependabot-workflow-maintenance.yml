@@ -152,7 +152,7 @@ jobs:
           }
           for (const error of errors) core.error(error);
           await core.summary.addHeading("Dependabot workflow dependency maintenance")
-            .addRaw(`Checked ${targets.length} repositories; merged ${merged} workflow dependency updates. CodeQL, builds, and reviews do not gate this automation.`)
+            .addRaw(`Checked ${targets.length} repositories; merged ${merged} workflow dependency updates.`)
             .addTable([[{data: "Repository", header: true}, {data: "Merged", header: true}, {data: "Pending", header: true}, {data: "Result", header: true}], ...results])
             .write();
           if (errors.length) core.setFailed(`${errors.length} repositories could not be processed; see the job summary.`);

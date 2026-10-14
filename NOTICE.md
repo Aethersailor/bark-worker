@@ -8,9 +8,9 @@ The initial compatibility target is commit `3df8990fcbc407a3f5638eea8cedc3289d1a
 
 ## frankwei98/bark-serverless
 
-The initial TypeScript route, APNs, MCP and contract-test structure was derived from [`frankwei98/bark-serverless`](https://github.com/frankwei98/bark-serverless) at commit `e88044ea0fb3c33fa836471e6f417d0f1d5f3519`, which declares the MIT License.
+The initial TypeScript route, APNs and MCP implementation was derived from [`frankwei98/bark-serverless`](https://github.com/frankwei98/bark-serverless) at commit `e88044ea0fb3c33fa836471e6f417d0f1d5f3519`, which declares the MIT License.
 
-This repository replaced its KV and Durable Object storage with D1, corrected registration and invalid-token behavior against `Finb/bark-server`, added quota controls, upstream verification, migration tools, CI/CD and deployment verification.
+This repository replaced its KV and Durable Object storage with D1, corrected registration and invalid-token behavior against `Finb/bark-server`, and added quota controls, upstream tracking, migration tools and deployment automation.
 
 ## Independence
 

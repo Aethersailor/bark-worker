@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const lockPath = process.argv[2] ?? "upstream/UPSTREAM.lock.json";
@@ -14,10 +13,6 @@ const source = await response.text();
 const privateKey = source.match(/const apnsPrivateKey = `([\s\S]*?)`/)?.[1];
 if (!privateKey) {
   throw new Error("unable to extract upstream APNs private key");
-}
-const digest = createHash("sha256").update(privateKey).digest("hex");
-if (digest !== lock.contract?.apns?.privateKeySha256) {
-  throw new Error("upstream APNs private key does not match the pinned fingerprint");
 }
 const outputIndex = process.argv.indexOf("--json-output");
 if (outputIndex >= 0) {

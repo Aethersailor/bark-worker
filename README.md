@@ -12,7 +12,7 @@
 - 使用 D1 保存 `device_key → device_token`。
 - 使用 Web Crypto 生成 APNs ES256 JWT。
 - 自动限制请求体、批量并发和设备数量。
-- 自动监测上游；行为相关文件变化时暂停同步并创建兼容性审查 Issue。
+- 自动同步上游版本和文件记录。
 - 提供 Bbolt 导出、恢复和 D1 导入工具。
 
 ## API
@@ -51,7 +51,7 @@
 
 ## 请求保护与费用边界
 
-注册、推送、MCP 和 `/info` 等接口在访问数据库或 APNs 前调用 `REQUEST_LIMITER`。默认限制同一 IP 在单个 Cloudflare 节点每分钟最多 120 次请求；本地、测试和生产环境使用独立计数器。绑定缺失或限流服务出错时返回 `503`，超限时返回 `429` 并附带 `Retry-After: 60`。`GET /`、`GET /ping` 和 `GET /healthz` 不访问数据库，仍可用于健康检查。
+注册、推送、MCP 和 `/info` 等接口在访问数据库或 APNs 前调用 `REQUEST_LIMITER`。默认限制同一 IP 在单个 Cloudflare 节点每分钟最多 120 次请求；本地、staging 和 production 环境使用独立计数器。绑定缺失或限流服务出错时返回 `503`，超限时返回 `429` 并附带 `Retry-After: 60`。`GET /`、`GET /ping` 和 `GET /healthz` 不访问数据库，仍可用于健康检查。
 
 限流用于降低滥用风险，不能作为全账户费用上限。需要阻止 Workers 和 D1 超额计费时，应保留 Workers Free 套餐；额度耗尽后操作会失败。付费套餐按超额用量计费，预算告警只通知、不停止用量。不要为此项目启用独立计费产品。
 
@@ -59,12 +59,11 @@
 
 ## 部署
 
-部署前需要 Cloudflare 账户、两个 D1 数据库和已认证的 Wrangler。按照 [部署手册](docs/DEPLOYMENT.md) 创建资源、配置 APNs secret、运行迁移并验证公开端点。
+部署前需要 Cloudflare 账户、D1 数据库和已认证的 Wrangler。按照 [部署手册](docs/DEPLOYMENT.md) 创建资源、配置 APNs secret、运行迁移并验证公开端点。
 
 ```sh
 pnpm install
 pnpm build
-pnpm exec wrangler deploy --env staging
 pnpm exec wrangler deploy --env production
 ```
 
@@ -90,15 +89,13 @@ pnpm dev
 pnpm build
 ```
 
-功能由维护者人工验证；CodeQL 独立扫描，不作为部署或依赖合并的前置条件。
+功能由维护者人工验证。
 
 ## 上游同步
 
-`upstream/UPSTREAM.lock.json` 固定上游仓库、精确 SHA、受监控文件哈希和提取后的接口契约。
+`upstream/UPSTREAM.lock.json` 记录上游仓库、精确 SHA、同步时间和文件哈希。定时工作流直接更新记录，并按 `AUTO_DEPLOY_ENABLED` 设置发布 production。
 
-- 文档或测试变化且语义文件未变化时，定时工作流可以安全更新锁文件。
-- 路由、数据库接口、APNs 或服务启动逻辑所在文件变化时，工作流创建 Issue，并阻止该次同步更新与部署。
-- 维护者审查差异并完成必要适配后，按精确提交更新锁文件；尚未审查的变化继续阻断。
+上游自带的测试文件和 API 文档继续纳入追踪。同步不会自动将 Go 代码移植到 TypeScript；Worker 的功能调整由维护者处理。
 
 维护规则见 [上游同步说明](docs/UPSTREAM_SYNC.md)。
 
@@ -106,7 +103,7 @@ pnpm build
 
 Dependabot 每天检查 npm、Go module 和 GitHub Actions 依赖。自动合并使用维护 App 为本仓库签发的短期令牌，只处理同仓库、非草稿的 Dependabot PR，并核对依赖文件范围、签名与当前 head SHA。
 
-更新无需人工批准，不等待 CodeQL 或构建结果。合并产生的 push 事件触发独立扫描及现有发布工作流；发布继续遵守 `AUTO_DEPLOY_ENABLED` 设置。每 6 小时自动核对开放 PR，补偿遗漏事件。
+更新无需人工批准或等待检查结果。合并产生的 push 事件直接触发发布工作流；发布继续遵守 `AUTO_DEPLOY_ENABLED` 设置。每 6 小时自动核对开放 PR，补偿遗漏事件。
 
 其他已授权仓库的工作流依赖由 `Dependabot workflow maintenance` 每 30 分钟自动处理，普通依赖继续由各仓库的事件工作流合并。仓库清单保存在 `DEPENDABOT_MERGE_REPOSITORIES` secret，私钥仅保存在本仓库。该任务只读取 GitHub 元数据，不检出或执行 PR 源码；合并后由目标仓库的 push 事件触发扫描和构建。
 
@@ -115,7 +112,7 @@ Dependabot 每天检查 npm、Go module 和 GitHub Actions 依赖。自动合并
 - `APNS_PRIVATE_KEY` 只存放在 Cloudflare secret 或临时部署文件中。
 - 日志不记录完整 URL、device key、device token、Authorization 或通知正文。
 - Basic Auth 用户名、密码和 `MCP_SESSION_SECRET` 必须使用 Worker secret。
-- 仓库启用独立 CodeQL 扫描、Dependabot 和 GitHub Secret Scanning。
+- 仓库使用 Dependabot 自动维护依赖。
 
 安全问题请按照 [SECURITY.md](SECURITY.md) 私下报告。
 

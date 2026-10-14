@@ -20,4 +20,4 @@ Include:
 
 Do not commit APNs private keys, Cloudflare API tokens, Basic Auth credentials, MCP session secrets, device keys or device tokens.
 
-The Bark APNs signing key is published by the official upstream for self-hosting compatibility. This repository still handles it as a deployment secret and verifies its pinned upstream fingerprint before upload.
+The Bark APNs signing key is published by the official upstream for self-hosting compatibility. This repository downloads it from the exact upstream commit recorded in the lock file and handles it as a deployment secret.

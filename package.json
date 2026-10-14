@@ -6,14 +6,13 @@
   "type": "module",
   "packageManager": "pnpm@11.19.0",
   "scripts": {
-    "build": "wrangler deploy --dry-run --env staging --outdir dist",
+    "build": "wrangler deploy --dry-run --env production --outdir dist",
     "deploy:production": "wrangler deploy --env production",
     "deploy:staging": "wrangler deploy --env staging",
     "dev": "wrangler dev",
     "migrate:local": "wrangler d1 migrations apply bark-worker-local --local",
     "types": "wrangler types",
-    "upstream:check": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json",
-    "upstream:sync": "node scripts/check-upstream.mjs --lock upstream/UPSTREAM.lock.json --write"
+    "upstream:sync": "node scripts/sync-upstream.mjs upstream/UPSTREAM.lock.json"
   },
   "dependencies": {
     "hono": "^4.13.13"

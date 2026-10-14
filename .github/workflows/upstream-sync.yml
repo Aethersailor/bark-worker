@@ -5,7 +5,6 @@ name: Upstream Sync
   workflow_dispatch: null
 permissions:
   contents: write
-  issues: write
 concurrency:
   group: upstream-sync
   cancel-in-progress: false
@@ -15,40 +14,22 @@ jobs:
     timeout-minutes: 15
     outputs:
       changed: ${{ steps.upstream.outputs.changed }}
-      safe: ${{ steps.upstream.outputs.safe }}
       source_sha: ${{ steps.commit.outputs.source_sha }}
     steps:
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    - name: Set up pnpm
-      uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
     - name: Set up Node.js
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
       with:
         node-version: 24
-        cache: pnpm
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile
-    - name: Check latest upstream
+    - name: Sync latest upstream
       id: upstream
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: pnpm upstream:sync
-    - name: Open an issue for semantic upstream changes
-      if: failure() && steps.upstream.outputs.safe == 'false'
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        REASON: ${{ steps.upstream.outputs.reason }}
-        UPSTREAM_SHA: ${{ steps.upstream.outputs.upstream_sha }}
-      shell: bash
-      run: |
-        title="Upstream compatibility review required"
-        if ! gh issue list --state open --search "$title in:title" --json title --jq '.[].title' | grep -Fxq "$title"; then
-          gh issue create --title "$title" --body "Finb/bark-server changed at \`$UPSTREAM_SHA\`. Automatic deployment stopped. Reason: $REASON"
-        fi
-    - name: Commit safe lock update
+      run: node scripts/sync-upstream.mjs upstream/UPSTREAM.lock.json
+    - name: Commit upstream lock update
       id: commit
-      if: steps.upstream.outputs.changed == 'true' && steps.upstream.outputs.safe == 'true'
+      if: steps.upstream.outputs.changed == 'true'
       shell: bash
       run: |
         git config user.name "github-actions[bot]"
@@ -57,22 +38,11 @@ jobs:
         git commit -m "chore(upstream): sync bark-server"
         git push origin HEAD:main
         echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-  staging:
-    needs: sync
-    if: needs.sync.outputs.changed == 'true' && needs.sync.outputs.safe == 'true' && vars.AUTO_DEPLOY_ENABLED == 'true'
-    uses: ./.github/workflows/deploy.yml
-    with:
-      target: staging
-      source_sha: ${{ needs.sync.outputs.source_sha }}
-      base_url: ${{ vars.STAGING_BASE_URL }}
-    secrets: inherit
   production:
-    needs:
-    - sync
-    - staging
+    needs: sync
+    if: needs.sync.outputs.changed == 'true' && vars.AUTO_DEPLOY_ENABLED == 'true'
     uses: ./.github/workflows/deploy.yml
     with:
       target: production
       source_sha: ${{ needs.sync.outputs.source_sha }}
-      base_url: ${{ vars.PRODUCTION_BASE_URL }}
     secrets: inherit

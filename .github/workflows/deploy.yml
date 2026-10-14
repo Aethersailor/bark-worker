@@ -8,10 +8,6 @@ name: Deploy
       source_sha:
         required: true
         type: string
-      base_url:
-        required: true
-        type: string
-        description: Public service base URL
     secrets:
       CLOUDFLARE_API_TOKEN:
         required: true
@@ -30,10 +26,6 @@ name: Deploy
         description: Git commit to embed; defaults to the selected revision
         required: false
         type: string
-      base_url:
-        description: Public service base URL
-        required: true
-        type: string
 permissions:
   contents: read
 concurrency:
@@ -48,7 +40,6 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TARGET: ${{ inputs.target }}
-      BASE_URL: ${{ inputs.base_url }}
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
     steps:
     - name: Validate target
