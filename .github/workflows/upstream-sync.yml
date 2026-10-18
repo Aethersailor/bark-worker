@@ -12,9 +12,6 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    outputs:
-      changed: ${{ steps.upstream.outputs.changed }}
-      source_sha: ${{ steps.commit.outputs.source_sha }}
     steps:
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -28,7 +25,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: node scripts/sync-upstream.mjs upstream/UPSTREAM.lock.json
     - name: Commit upstream lock update
-      id: commit
       if: steps.upstream.outputs.changed == 'true'
       shell: bash
       run: |
@@ -37,12 +33,3 @@ jobs:
         git add upstream/UPSTREAM.lock.json
         git commit -m "chore(upstream): sync bark-server"
         git push origin HEAD:main
-        echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-  production:
-    needs: sync
-    if: needs.sync.outputs.changed == 'true' && vars.AUTO_DEPLOY_ENABLED == 'true'
-    uses: ./.github/workflows/deploy.yml
-    with:
-      target: production
-      source_sha: ${{ needs.sync.outputs.source_sha }}
-    secrets: inherit

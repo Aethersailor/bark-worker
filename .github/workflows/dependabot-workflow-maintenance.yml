@@ -76,9 +76,14 @@ jobs:
             let pending = 0;
             try {
               const {data: repository} = await github.rest.repos.get({owner, repo});
-              if (owner !== "Aethersailor" || repository.id !== target.id || repository.archived ||
+              if (owner !== "Aethersailor" || repository.id !== target.id ||
                   (repository.fork && !["geoip", "subweb"].includes(repo))) {
                 throw new Error("Repository identity or maintenance scope has changed.");
+              }
+              if (repository.archived) {
+                core.info(`${label} is archived; skipping maintenance.`);
+                results.push([label, "0", "0", "archived"]);
+                continue;
               }
               const base = repository.default_branch;
               const eligible = pr => pr.state === "open" && !pr.draft &&

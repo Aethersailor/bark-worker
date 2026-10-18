@@ -7,12 +7,11 @@ name: Dependabot auto-merge
     - synchronize
     - ready_for_review
   schedule:
-  - cron: 9 */6 * * *
+  - cron: 9 * * * *
   workflow_dispatch: null
 permissions:
   contents: write
   pull-requests: write
-  actions: write
 concurrency:
   group: dependabot-auto-merge
   cancel-in-progress: false
@@ -55,27 +54,32 @@ jobs:
               core.warning(`PR #${pr.number} contains changes outside dependency files.`);
               continue;
             }
-            const {data: commit} = await github.rest.repos.getCommit({...repo, ref: pr.head.sha});
+            const head = pr.head.sha;
+            const {data: commit} = await github.rest.repos.getCommit({...repo, ref: head});
             if (!commit.commit.verification?.verified) {
               core.warning(`PR #${pr.number} does not have a verified head commit.`);
               continue;
             }
-            if (pr.mergeable === null) {
+            for (let attempt = 0; pr.mergeable === null && attempt < 3; attempt++) {
               await new Promise(resolve => setTimeout(resolve, 2000));
               ({data: pr} = await github.rest.pulls.get({...repo, pull_number: pr.number}));
             }
-            if (!pr.mergeable) {
-              try {
-                await github.rest.pulls.updateBranch({...repo, pull_number: pr.number, expected_head_sha: pr.head.sha});
-                core.info(`Updated PR #${pr.number}; a later event or scheduled run will merge it.`);
-              } catch (error) {
-                if (![403, 409, 422].includes(error.status)) throw error;
-                core.warning(`PR #${pr.number} is awaiting Dependabot conflict reconciliation: ${error.message}`);
+            if (pr.state !== 'open' || pr.head.sha !== head) continue;
+            if (pr.mergeable === null) {
+              core.info(`PR #${pr.number} is awaiting GitHub mergeability calculation.`);
+              continue;
+            }
+            if (pr.mergeable === false) {
+              const marker = `<!-- dependabot-rebase:${head} -->`;
+              const comments = await github.paginate(github.rest.issues.listComments, {...repo, issue_number: pr.number, per_page: 100});
+              if (!comments.some(comment => comment.user.type === 'Bot' && comment.body?.includes(marker))) {
+                await github.rest.issues.createComment({...repo, issue_number: pr.number, body: `@dependabot rebase\n\n${marker}`});
+                core.info(`Requested Dependabot to regenerate the conflicting update in PR #${pr.number}.`);
               }
               continue;
             }
             try {
-              const result = await github.rest.pulls.merge({...repo, pull_number: pr.number, sha: pr.head.sha, merge_method: 'squash'});
+              const result = await github.rest.pulls.merge({...repo, pull_number: pr.number, sha: head, merge_method: 'squash'});
               if (!result.data.merged) continue;
               merged++;
               core.info(`Merged Dependabot PR #${pr.number} at ${result.data.sha}.`);

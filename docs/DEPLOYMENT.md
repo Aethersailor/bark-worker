@@ -85,18 +85,16 @@ pnpm exec wrangler deploy --env staging --strict --minify
 
 完成 Bark App 注册或旧数据导入后，将 production 的 `REGISTRATION_MODE` 改为 `existing-only`。重新运行 `pnpm types` 并部署。
 
-## GitHub Actions 自动部署
+## GitHub Actions 手动部署
 
 GitHub `staging` 和 `production` Environment 需要以下 secrets：
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
-仓库 variables：
+`Deploy` 工作流仅支持手动触发或显式调用。主分支 push、依赖合并和上游同步均不会自动部署。`AUTO_DEPLOY_ENABLED` 变量不再控制部署。
 
-- `AUTO_DEPLOY_ENABLED=true`
-
-主分支 push 和有变化的上游同步直接部署 production；两者均遵守 `AUTO_DEPLOY_ENABLED` 设置。staging 通过 `Deploy` 工作流手动部署。
+在 Actions 页面启用 `Deploy` 工作流后，手动选择 staging 或 production 执行部署。
 
 Cloudflare API Token 只授予目标账户的 Workers Scripts 和 D1 必要权限。
 
