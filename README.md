@@ -103,7 +103,7 @@ pnpm build
 
 Dependabot 每天检查 npm、Go module 和 GitHub Actions 依赖。自动合并使用维护 App 为本仓库签发的短期令牌，只处理同仓库、非草稿的 Dependabot PR，并核对依赖文件范围、签名与当前 head SHA。
 
-更新无需人工批准或等待检查结果。存在合并冲突时，工作流请求 Dependabot 重新生成更新；同一 head SHA 只请求一次。每小时自动核对开放 PR，补偿遗漏事件。依赖合并和上游同步均不会部署 Worker；部署需手动执行。
+更新无需人工批准或等待检查结果。存在合并冲突时，由 Dependabot 自动重整分支，更新后继续自动合并。每小时自动核对开放 PR，补偿遗漏事件。依赖合并和上游同步均不会部署 Worker；部署需手动执行。
 
 其他已授权仓库的工作流依赖由 `Dependabot workflow maintenance` 每 30 分钟自动处理，已归档仓库自动跳过，普通依赖继续由各仓库的事件工作流合并。仓库清单保存在 `DEPENDABOT_MERGE_REPOSITORIES` secret，私钥仅保存在本仓库。该任务只读取 GitHub 元数据，不检出或执行 PR 源码；合并后由目标仓库的 push 事件触发扫描和构建。
 
