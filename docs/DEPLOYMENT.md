@@ -1,6 +1,6 @@
 # 部署手册
 
-正式服务使用 `bark-worker`。可选的 `bark-worker-staging` 使用独立 D1 数据库，通过手动部署维护。
+本项目通过本地 Wrangler 手动部署。production 使用 `bark-worker`；可选的 staging 使用 `bark-worker-staging` 和独立 D1 数据库。
 
 ## 前置条件
 
@@ -84,19 +84,6 @@ pnpm exec wrangler deploy --env staging --strict --minify
 ## 8. 首次注册后的保护
 
 完成 Bark App 注册或旧数据导入后，将 production 的 `REGISTRATION_MODE` 改为 `existing-only`。重新运行 `pnpm types` 并部署。
-
-## GitHub Actions 手动部署
-
-GitHub `staging` 和 `production` Environment 需要以下 secrets：
-
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
-`Deploy` 工作流仅支持手动触发或显式调用。主分支 push、依赖合并和上游同步均不会自动部署。`AUTO_DEPLOY_ENABLED` 变量不再控制部署。
-
-在 Actions 页面启用 `Deploy` 工作流后，手动选择 staging 或 production 执行部署。
-
-Cloudflare API Token 只授予目标账户的 Workers Scripts 和 D1 必要权限。
 
 ## 回滚
 

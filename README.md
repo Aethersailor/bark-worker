@@ -103,13 +103,13 @@ pnpm build
 
 Dependabot 每天检查 npm、Go module 和 GitHub Actions 依赖。自动合并使用维护 App 为本仓库签发的短期令牌，只处理同仓库、非草稿的 Dependabot PR，并核对依赖文件范围、签名与当前 head SHA。
 
-更新无需人工批准或等待检查结果。存在合并冲突时，由 Dependabot 自动重整分支，更新后继续自动合并。每小时自动核对开放 PR，补偿遗漏事件。依赖合并和上游同步均不会部署 Worker；部署需手动执行。
+更新无需人工批准或等待检查结果。存在合并冲突时，由 Dependabot 自动重整分支，更新后继续自动合并。每小时自动核对开放 PR，补偿遗漏事件。依赖合并和上游同步均不会部署 Worker；部署通过本地 Wrangler 手动执行。
 
 其他已授权仓库的工作流依赖由 `Dependabot workflow maintenance` 每 30 分钟自动处理，已归档仓库自动跳过，普通依赖继续由各仓库的事件工作流合并。仓库清单保存在 `DEPENDABOT_MERGE_REPOSITORIES` secret，私钥仅保存在本仓库。该任务只读取 GitHub 元数据，不检出或执行 PR 源码；合并后由目标仓库的 push 事件触发扫描和构建。
 
 ## 安全
 
-- `APNS_PRIVATE_KEY` 只存放在 Cloudflare secret 或临时部署文件中。
+- 部署时通过管道将 `APNS_PRIVATE_KEY` 写入 Cloudflare secret；本地开发使用被 Git 忽略的 `.dev.vars`。
 - 日志不记录完整 URL、device key、device token、Authorization 或通知正文。
 - Basic Auth 用户名、密码和 `MCP_SESSION_SECRET` 必须使用 Worker secret。
 - 仓库使用 Dependabot 自动维护依赖。
