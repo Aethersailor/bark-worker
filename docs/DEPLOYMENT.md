@@ -2,6 +2,8 @@
 
 本项目通过本地 Wrangler 手动部署。production 使用 `bark-worker`；可选的 staging 使用 `bark-worker-staging` 和独立 D1 数据库。
 
+以下步骤默认只部署 production。命令采用 POSIX shell 语法；Windows 可使用 Git Bash。部署不需要配置 GitHub Environment、secrets 或 variables。
+
 ## 前置条件
 
 - Node.js 24。
@@ -31,11 +33,10 @@ pnpm exec wrangler whoami
 ## 3. 创建 D1 数据库
 
 ```sh
-pnpm exec wrangler d1 create bark-worker-staging-db
 pnpm exec wrangler d1 create bark-worker-db
 ```
 
-只部署 production 时，仅创建 `bark-worker-db`。将命令返回的 `database_id` 写入 `wrangler.jsonc` 的对应环境，再生成类型：
+将命令返回的 `database_id` 写入 `wrangler.jsonc` 的 `env.production.d1_databases`，替换示例 ID，再生成类型：
 
 ```sh
 pnpm types
@@ -46,7 +47,6 @@ pnpm types
 以下命令从锁定的官方上游 SHA 提取 APNs 私钥，并直接写入 Cloudflare。命令不会在终端打印私钥。
 
 ```sh
-node scripts/print-upstream-apns-key.mjs | pnpm exec wrangler secret put APNS_PRIVATE_KEY --env staging
 node scripts/print-upstream-apns-key.mjs | pnpm exec wrangler secret put APNS_PRIVATE_KEY --env production
 ```
 
@@ -55,7 +55,6 @@ Basic Auth 和 MCP session secret 也使用 `wrangler secret put`。不要写入
 ## 5. 应用迁移
 
 ```sh
-pnpm exec wrangler d1 migrations apply DB --env staging --remote
 pnpm exec wrangler d1 migrations apply DB --env production --remote
 ```
 
@@ -63,9 +62,17 @@ pnpm exec wrangler d1 migrations apply DB --env production --remote
 
 ## 6. 部署 production
 
+从需要部署的 Git 提交运行以下命令，将版本、构建时间、当前提交和锁定的上游提交写入 `/info`：
+
 ```sh
-pnpm exec wrangler deploy --env production --strict --minify
+pnpm exec wrangler deploy --env production --strict --minify \
+  --var "APP_VERSION:$(node -p 'require("./package.json").version')" \
+  --var "APP_BUILD:$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --var "APP_COMMIT:$(git rev-parse HEAD)" \
+  --var "UPSTREAM_COMMIT:$(node -p 'require("./upstream/UPSTREAM.lock.json").commit')"
 ```
+
+`wrangler.jsonc` 中的版本信息用于本地开发，未指定上游提交时显示 `unknown`。上游同步只更新锁文件；手动部署时以上述命令读取当前记录。
 
 使用部署输出中的 URL 验证：
 
@@ -77,9 +84,16 @@ curl https://<production-worker>/info
 
 ## 7. 可选的 staging 部署
 
+需要 staging 时，单独创建数据库，将返回的 ID 写入 `env.staging.d1_databases`，再配置密钥并应用迁移：
+
 ```sh
-pnpm exec wrangler deploy --env staging --strict --minify
+pnpm exec wrangler d1 create bark-worker-staging-db
+pnpm types
+node scripts/print-upstream-apns-key.mjs | pnpm exec wrangler secret put APNS_PRIVATE_KEY --env staging
+pnpm exec wrangler d1 migrations apply DB --env staging --remote
 ```
+
+部署时使用第 6 步的命令，将 `--env production` 改为 `--env staging`。staging 不作为 production 部署的前置步骤。
 
 ## 8. 首次注册后的保护
 

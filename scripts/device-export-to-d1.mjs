@@ -1,9 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 
-export function checksumDevices(devices) {
+function checksumDevices(devices) {
   const hash = createHash("sha256");
   for (const item of devices) {
     hash.update(item.device_key);
@@ -14,7 +12,7 @@ export function checksumDevices(devices) {
   return hash.digest("hex");
 }
 
-export function parseDeviceExport(contents) {
+function parseDeviceExport(contents) {
   const payload = JSON.parse(contents);
   if (payload.schema_version !== 1 || !Array.isArray(payload.devices)) {
     throw new Error("unsupported Bark device export");
@@ -47,7 +45,7 @@ export function parseDeviceExport(contents) {
   return { devices, sha256: payload.sha256, timestamp };
 }
 
-export function deviceExportToSql(payload) {
+function deviceExportToSql(payload) {
   const quote = (value) => `'${value.replaceAll("'", "''")}'`;
   return payload.devices.map(
     (item) =>
@@ -68,7 +66,4 @@ async function main() {
   console.log(`generated D1 import statements=${statements.length} sha256=${payload.sha256}`);
 }
 
-const entrypoint = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : "";
-if (entrypoint === import.meta.url) {
-  await main();
-}
+await main();

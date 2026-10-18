@@ -62,10 +62,11 @@
 部署前需要 Cloudflare 账户、D1 数据库和已认证的 Wrangler。按照 [部署手册](docs/DEPLOYMENT.md) 创建资源、配置 APNs secret、运行迁移并验证公开端点。
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
 pnpm build
-pnpm exec wrangler deploy --env production
 ```
+
+随后按部署手册完成 Wrangler 手动部署，并将当前版本、Git 提交和上游提交写入 `/info`。
 
 `wrangler.jsonc` 是 Worker 配置的唯一事实来源。不要在 Cloudflare Dashboard 中长期维护与仓库不同的变量或绑定。
 
@@ -84,10 +85,15 @@ pnpm exec wrangler d1 execute DB --env production --remote --file devices.bark-b
 ## 本地开发
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
+pnpm types
+cp -n .dev.vars.example .dev.vars
+pnpm migrate:local
 pnpm dev
 pnpm build
 ```
+
+启动前，将 `.dev.vars` 中的 `APNS_PRIVATE_KEY` 占位值替换为锁定上游的 APNs 私钥。首次准备完成后，日常开发直接运行 `pnpm dev`；保留 `.wrangler/state` 中的本地数据库。
 
 功能由维护者人工验证。
 

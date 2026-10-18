@@ -64,12 +64,11 @@ pnpm exec wrangler d1 execute DB \
 
 如果 D1 已接收新写入：
 
-1. 从 D1 导出最新设备数据。
-2. 转换为 `devices.bark-export.json`。
-3. 使用 `bark-db import` 生成新的 Bbolt 文件。
-4. 验证记录数量和 SHA-256。
-5. 停止 Worker 写入。
-6. 用新文件替换旧服务数据并启动旧服务。
+1. 停止 Worker 写入。
+2. 从 D1 导出最新设备数据。
+3. 转换为 `devices.bark-export.json`。
+4. 使用 `bark-db import` 生成新的 Bbolt 文件，并验证记录数量和 SHA-256。
+5. 用新文件替换旧服务数据并启动旧服务。
 
 `bark-db import` 不覆盖已有文件：
 

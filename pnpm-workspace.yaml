@@ -1,10 +1,6 @@
 allowBuilds:
   esbuild: true
   workerd: true
-minimumReleaseAgeExclude:
-- '@cloudflare/workers-types@5.20260901.1'
-- miniflare@5.20261006.0-alpha
-- wrangler@4.148.0
 overrides:
   sharp: ^0.35.5
   undici@>=7.0.0 <7.29.1: 7.29.1

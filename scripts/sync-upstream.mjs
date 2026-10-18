@@ -105,7 +105,7 @@ try {
 
 const commit = await resolveLatestCommit();
 if (previous?.schemaVersion === 2 && previous.commit === commit) {
-  await appendOutput({ changed: "false", upstream_sha: commit });
+  await appendOutput({ changed: "false" });
   console.log(`upstream lock already current at ${commit}`);
   process.exit(0);
 }
@@ -120,8 +120,5 @@ const next = {
   files: Object.fromEntries(WATCHED_FILES.map((path) => [path, sha256(files[path])])),
 };
 await writeFile(lockPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-await appendOutput({
-  changed: "true",
-  upstream_sha: commit,
-});
+await appendOutput({ changed: "true" });
 console.log(`upstream lock written at ${commit}`);
