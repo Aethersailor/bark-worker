@@ -5,6 +5,8 @@ name: Dependabot workflow maintenance
   workflow_dispatch: null
 permissions:
   contents: read
+env:
+  ADDITIONAL_MAINTAINED_REPOSITORIES: '[{"id":1427975625,"full_name":"Aethersailor/frp-image-sync","private":false}]'
 concurrency:
   group: dependabot-workflow-maintenance
   cancel-in-progress: false
@@ -21,7 +23,7 @@ jobs:
         MAINTAINED_REPOSITORIES: ${{ secrets.DEPENDABOT_MERGE_REPOSITORIES }}
       with:
         script: |
-          const targets = JSON.parse(process.env.MAINTAINED_REPOSITORIES);
+          const targets = [...JSON.parse(process.env.MAINTAINED_REPOSITORIES), ...JSON.parse(process.env.ADDITIONAL_MAINTAINED_REPOSITORIES)];
           if (!Array.isArray(targets) || !targets.length || new Set(targets.map(t => t.id)).size !== targets.length ||
               !targets.every(t => Number.isInteger(t.id) && t.full_name.startsWith("Aethersailor/") && t.full_name.split("/").length === 2)) {
             throw new Error("The authorized maintenance repository allowlist is invalid.");
@@ -52,7 +54,7 @@ jobs:
       with:
         github-token: ${{ steps.maintenance-token.outputs.token }}
         script: |
-          const targets = JSON.parse(process.env.MAINTAINED_REPOSITORIES);
+          const targets = [...JSON.parse(process.env.MAINTAINED_REPOSITORIES), ...JSON.parse(process.env.ADDITIONAL_MAINTAINED_REPOSITORIES)];
           const manifests = /(^|\/)(package(?:-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|go\.(mod|sum)|requirements[^/]*\.txt|pyproject\.toml|uv\.lock|Pipfile(?:\.lock)?|poetry\.lock|setup\.(py|cfg)|Cargo\.(toml|lock)|Gemfile(?:\.lock)?|composer\.(json|lock)|\.gitmodules|Dockerfile[^/]*|[^/]+\.dockerfile)$/i;
           const workflowFile = name => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(name) || /^\.github\/actions\/.+\/action\.ya?ml$/.test(name);
           const errors = [];
