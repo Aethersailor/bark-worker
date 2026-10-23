@@ -14,6 +14,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: dependabot-auto-merge
@@ -66,6 +67,11 @@ jobs:
               result=1
             fi
           done <<< "$pull_numbers"
+
+          # Repository-token merges need an explicit follow-up workflow dispatch.
+          if (( merged > 0 )); then
+            gh workflow run codeql.yml --repo "$REPOSITORY" --ref "$BASE_BRANCH" || result=1
+          fi
 
           echo "Merged $merged Dependabot PR(s) with the repository Actions token"
           exit "$result"
