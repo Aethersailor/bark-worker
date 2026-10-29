@@ -15,10 +15,10 @@
     "upstream:sync": "node scripts/sync-upstream.mjs upstream/UPSTREAM.lock.json"
   },
   "dependencies": {
-    "hono": "^4.13.13"
+    "hono": "^4.13.14"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261024.1",
+    "@cloudflare/workers-types": "^5.20261025.1",
     "@types/node": "^26.6.5",
     "typescript": "^7.0.2",
     "undici": "catalog:",
